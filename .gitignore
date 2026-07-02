@@ -27,3 +27,8 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Claude Code / agent tooling
+.claude/
+.agents/
+skills-lock.json
