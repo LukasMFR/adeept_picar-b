@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#0a0d12" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#eef1f5" media="(prefers-color-scheme: light)" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="description" content="Modern control console for the Adeept PiCar-B robot." />
+<title>PiCar-B Console</title>
+<link rel="icon" href="/favicon.ico" />
+<style>
+/*
+  PiCar-B Console — a single self-contained control surface.
+  No CDN / no build step: the robot often runs in offline AP mode, so fonts are a
+  system stack (SF Pro on iOS = premium, zero network) and icons are inline SVG.
+  Design language: dark-tech FPV cockpit, one locked cyan-teal accent,
+  red/green/amber reserved strictly for STOP / connection / warning.
+*/
+
+/* ---------- Design tokens ---------- */
+:root {
+  color-scheme: light dark;
+
+  /* Light theme (base) */
+  --bg:            #eef1f5;
+  --bg-grad-a:     #e7ebf1;
+  --bg-grad-b:     #f4f6f9;
+  --surface:       rgba(255,255,255,0.72);
+  --surface-solid: #ffffff;
+  --panel:         rgba(255,255,255,0.66);
+  --panel-2:       rgba(20,30,48,0.035);
+  --hairline:      rgba(15,23,42,0.10);
+  --hairline-soft: rgba(15,23,42,0.06);
+  --text:          #101725;
+  --text-dim:      #566072;
+  --text-faint:    #8b95a6;
+
+  --accent:        #0ea5b7;   /* desaturated cyan-teal */
+  --accent-strong: #0b8797;
+  --accent-ink:    #ffffff;
+  --accent-glow:   rgba(14,165,183,0.28);
+
+  --go:            #12a150;   /* connected / go */
+  --go-soft:       rgba(18,161,80,0.14);
+  --warn:          #c67c07;
+  --warn-soft:     rgba(198,124,7,0.14);
+  --danger:        #e5372b;   /* STOP / emergency */
+  --danger-strong: #c62828;
+  --danger-ink:    #ffffff;
+  --danger-soft:   rgba(229,55,43,0.12);
+
+  --shadow-lo:  0 1px 2px rgba(15,23,42,0.06), 0 2px 6px rgba(15,23,42,0.05);
+  --shadow-hi:  0 8px 30px rgba(15,23,42,0.12), 0 2px 8px rgba(15,23,42,0.08);
+  --shadow-accent: 0 8px 26px var(--accent-glow);
+
+  --r-lg: 26px;
+  --r-md: 18px;
+  --r-sm: 13px;
+
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur: 260ms;
+
+  --z-hud: 20;
+  --z-stop: 60;
+  --z-toast: 80;
+
+  --pad: clamp(12px, 3.6vw, 20px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:            #0a0d12;
+    --bg-grad-a:     #0c1119;
+    --bg-grad-b:     #070a0e;
+    --surface:       rgba(255,255,255,0.045);
+    --surface-solid: #12171f;
+    --panel:         rgba(255,255,255,0.038);
+    --panel-2:       rgba(255,255,255,0.05);
+    --hairline:      rgba(255,255,255,0.09);
+    --hairline-soft: rgba(255,255,255,0.055);
+    --text:          #e6edf5;
+    --text-dim:      #93a0b1;
+    --text-faint:    #626e7e;
+
+    --accent:        #22c7d6;
+    --accent-strong: #38d4e2;
+    --accent-ink:    #04141a;
+    --accent-glow:   rgba(34,199,214,0.30);
+
+    --go:            #2fd07a;
+    --go-soft:       rgba(47,208,122,0.16);
+    --warn:          #f2b234;
+    --warn-soft:     rgba(242,178,52,0.16);
+    --danger:        #ff4438;
+    --danger-strong: #ff5a4f;
+    --danger-ink:    #150202;
+    --danger-soft:   rgba(255,68,56,0.16);
+
+    --shadow-lo:  0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.35);
+    --shadow-hi:  0 14px 44px rgba(0,0,0,0.55), 0 3px 10px rgba(0,0,0,0.4);
+    --shadow-accent: 0 10px 34px var(--accent-glow);
+  }
+}
+
+/* Manual theme overrides (win over prefers-color-scheme) */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg:#eef1f5; --bg-grad-a:#e7ebf1; --bg-grad-b:#f4f6f9;
+  --surface:rgba(255,255,255,0.72); --surface-solid:#ffffff; --panel:rgba(255,255,255,0.66); --panel-2:rgba(20,30,48,0.035);
+  --hairline:rgba(15,23,42,0.10); --hairline-soft:rgba(15,23,42,0.06);
+  --text:#101725; --text-dim:#566072; --text-faint:#8b95a6;
+  --accent:#0ea5b7; --accent-strong:#0b8797; --accent-ink:#ffffff; --accent-glow:rgba(14,165,183,0.28);
+  --go:#12a150; --go-soft:rgba(18,161,80,0.14); --warn:#c67c07; --warn-soft:rgba(198,124,7,0.14);
+  --danger:#e5372b; --danger-strong:#c62828; --danger-ink:#ffffff; --danger-soft:rgba(229,55,43,0.12);
+  --shadow-lo:0 1px 2px rgba(15,23,42,0.06),0 2px 6px rgba(15,23,42,0.05);
+  --shadow-hi:0 8px 30px rgba(15,23,42,0.12),0 2px 8px rgba(15,23,42,0.08);
+  --shadow-accent:0 8px 26px var(--accent-glow);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:#0a0d12; --bg-grad-a:#0c1119; --bg-grad-b:#070a0e;
+  --surface:rgba(255,255,255,0.045); --surface-solid:#12171f; --panel:rgba(255,255,255,0.038); --panel-2:rgba(255,255,255,0.05);
+  --hairline:rgba(255,255,255,0.09); --hairline-soft:rgba(255,255,255,0.055);
+  --text:#e6edf5; --text-dim:#93a0b1; --text-faint:#626e7e;
+  --accent:#22c7d6; --accent-strong:#38d4e2; --accent-ink:#04141a; --accent-glow:rgba(34,199,214,0.30);
+  --go:#2fd07a; --go-soft:rgba(47,208,122,0.16); --warn:#f2b234; --warn-soft:rgba(242,178,52,0.16);
+  --danger:#ff4438; --danger-strong:#ff5a4f; --danger-ink:#150202; --danger-soft:rgba(255,68,56,0.16);
+  --shadow-lo:0 1px 2px rgba(0,0,0,0.4),0 2px 8px rgba(0,0,0,0.35);
+  --shadow-hi:0 14px 44px rgba(0,0,0,0.55),0 3px 10px rgba(0,0,0,0.4);
+  --shadow-accent:0 10px 34px var(--accent-glow);
+}
+
+/* ---------- Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+               "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  background-image:
+    radial-gradient(120% 90% at 12% -10%, var(--accent-glow) 0%, transparent 42%),
+    radial-gradient(90% 80% at 108% 8%, rgba(120,140,180,0.10) 0%, transparent 46%),
+    linear-gradient(160deg, var(--bg-grad-a), var(--bg-grad-b));
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+button { font: inherit; color: inherit; }
+h1,h2,h3,p { margin: 0; }
+.tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+.mono { font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, monospace; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------- App shell ---------- */
+.app {
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: calc(var(--safe-t) + 8px) var(--pad) 0;
+  max-width: 1500px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+/* Prevent grid/flex children from forcing horizontal overflow on narrow screens
+   (default min-width:auto lets intrinsic content push past the viewport). */
+.main, .dock, .panels, .panel, .panel-inner, .drive-grid, .pads, .pad, .hold,
+.speed-row, .cam-panel, .dpad, .stack, .row, .rtext, .metrics, .metric, .kv,
+.stage, .screen { min-width: 0; }
+.speed-row input[type="range"] { min-width: 0; }
+
+/* ---------- Top status bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-lo);
+}
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand .mark {
+  width: 30px; height: 30px; border-radius: 9px;
+  display: grid; place-items: center; flex: none;
+  color: var(--accent-ink);
+  background: linear-gradient(150deg, var(--accent-strong), var(--accent));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), var(--shadow-accent);
+}
+.brand .mark svg { width: 18px; height: 18px; }
+.brand .name { font-weight: 640; letter-spacing: -0.01em; font-size: 15px; white-space: nowrap; }
+.brand .sub { font-size: 11px; color: var(--text-faint); letter-spacing: 0.02em; }
+
+.conn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 11px 5px 9px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--hairline-soft);
+  font-size: 12.5px; font-weight: 560; white-space: nowrap;
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--text-faint); position: relative; }
+.dot::after { content:""; position:absolute; inset:-4px; border-radius:50%; background: currentColor; opacity:.28; }
+.conn[data-state="open"]  { color: var(--go); }
+.conn[data-state="open"] .dot { background: var(--go); animation: pulse 2.4s var(--ease) infinite; }
+.conn[data-state="connecting"] { color: var(--warn); }
+.conn[data-state="connecting"] .dot { background: var(--warn); animation: pulse 1s var(--ease) infinite; }
+.conn[data-state="closed"] { color: var(--danger); }
+.conn[data-state="closed"] .dot { background: var(--danger); }
+.conn .label { color: var(--text); }
+
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 currentColor; } 50% { box-shadow: 0 0 0 4px transparent; } }
+
+.spacer { flex: 1 1 auto; }
+
+.stat-chips { display: flex; gap: 7px; }
+.chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--hairline-soft);
+  font-size: 12px; color: var(--text-dim); white-space: nowrap;
+}
+.chip b { color: var(--text); font-weight: 620; font-size: 12.5px; }
+.chip[data-warn="1"] { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+.chip[data-warn="1"] b { color: var(--warn); }
+
+.icon-btn {
+  width: 38px; height: 38px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 11px; cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--hairline-soft);
+  color: var(--text-dim);
+  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.icon-btn:hover { color: var(--text); background: var(--surface); }
+.icon-btn:active { transform: scale(0.94); }
+.icon-btn svg { width: 19px; height: 19px; }
+
+/* ---------- Main grid ---------- */
+.main {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(150px, 40dvh) minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 0 0;
+}
+
+/* ===== Camera stage ===== */
+.stage {
+  position: relative;
+  min-height: 0;
+  border-radius: var(--r-lg);
+  padding: 6px;                         /* double-bezel outer shell */
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-hi);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+}
+.screen {
+  position: relative;
+  height: 100%;
+  border-radius: calc(var(--r-lg) - 6px);   /* concentric inner core */
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(45deg, rgba(127,127,127,0.05) 0 10px, transparent 10px 20px),
+    #05070a;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.04);
+  display: grid; place-items: center;
+}
+#cam {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+  opacity: 0;
+  transition: opacity 400ms var(--ease);
+  background: #000;
+}
+.stage[data-cam="live"] #cam { opacity: 1; }
+
+/* Camera overlay HUD */
+.cam-hud { position: absolute; inset: 0; pointer-events: none; }
+.cam-tag {
+  position: absolute; top: 10px; left: 10px;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: #fff; background: rgba(8,12,18,0.55);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.14);
+}
+.cam-tag .rec { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: pulse 1.8s var(--ease) infinite; }
+.stage:not([data-cam="live"]) .cam-tag .rec { background: var(--text-faint); box-shadow: none; animation: none; }
+
+.cam-placeholder {
+  position: relative; z-index: 1;
+  display: grid; place-items: center; gap: 12px;
+  text-align: center; color: #9aa7b6; padding: 24px;
+}
+.stage[data-cam="live"] .cam-placeholder { display: none; }
+.cam-placeholder .spin {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,0.14);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+.stage[data-cam="offline"] .cam-placeholder .spin { display: none; }
+.cam-placeholder p { font-size: 13.5px; }
+.cam-placeholder .muted { font-size: 12px; color: var(--text-faint); max-width: 30ch; }
+.cam-retry {
+  margin-top: 4px; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 13px;
+  border: none; box-shadow: var(--shadow-accent);
+  transition: transform var(--dur) var(--ease);
+}
+.cam-retry:active { transform: scale(0.96); }
+.stage:not([data-cam="offline"]) .cam-retry { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Control dock ===== */
+/* Flex column: predictable ordering + a single flexible child (.panels).
+   Mobile order = tabs, panels, STOP (STOP pinned to the bottom, thumb-reachable). */
+.dock {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dock > .tabs    { order: 1; flex: none; }
+.dock > .panels  { order: 2; flex: 1 1 auto; min-height: 0; }
+.dock > .stopbar { order: 3; flex: none; }
+
+/* Tabs */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-lo);
+}
+.tab {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px 6px; border-radius: 13px; cursor: pointer;
+  background: transparent; border: none;
+  color: var(--text-dim); font-weight: 560; font-size: 13px;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.tab svg { width: 17px; height: 17px; }
+.tab .tlabel { }
+.tab[aria-selected="true"] {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: var(--shadow-lo), inset 0 1px 0 rgba(255,255,255,0.10);
+}
+.tab[aria-selected="true"] svg { color: var(--accent); }
+.tab:not([aria-selected="true"]):hover { color: var(--text); }
+
+/* Panels container */
+.panels {
+  min-height: 0;
+  border-radius: var(--r-lg);
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-hi);
+  position: relative;
+}
+.panel { display: none; height: 100%; }
+.panel[data-active="true"] { display: block; }
+.panel.scrolls { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.panel-inner { height: 100%; padding: 10px; }
+
+/* --- Drive panel --- */
+.drive-grid {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
+}
+.speed-row {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--panel-2); border: 1px solid var(--hairline-soft);
+}
+.speed-row .lab { font-size: 12px; color: var(--text-dim); font-weight: 560; letter-spacing: 0.02em; }
+.speed-row .val { font-weight: 680; font-size: 15px; min-width: 44px; text-align: right; color: var(--accent); }
+input[type="range"] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) var(--fill,100%), var(--hairline) var(--fill,100%));
+  outline-offset: 4px; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--surface-solid); border: 2px solid var(--accent);
+  box-shadow: var(--shadow-lo), 0 0 0 4px var(--accent-glow);
+  transition: transform 120ms var(--ease);
+}
+input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
+input[type="range"]::-moz-range-thumb {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--surface-solid);
+  border: 2px solid var(--accent); box-shadow: var(--shadow-lo);
+}
+
+.pads {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0;
+}
+.pad {
+  position: relative;
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+  border: 1px solid var(--hairline-soft);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+.pad-title {
+  position: absolute; top: 10px; left: 12px;
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-faint); font-weight: 600; pointer-events: none;
+}
+/* Throttle = vertical (fwd/back); Steer = horizontal (left/right) */
+.pad.throttle { grid-template-rows: 1fr 1fr; padding-top: 30px; }
+.pad.steer    { grid-template-columns: 1fr 1fr; padding-top: 30px; align-items: stretch; }
+
+.hold {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  touch-action: none;
+  display: grid; place-items: center; gap: 6px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+  transition: transform 120ms var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  font-weight: 600; font-size: 12.5px;
+  min-height: 56px;
+}
+.hold svg { width: 30px; height: 30px; color: var(--text-dim); transition: color var(--dur) var(--ease); }
+.hold small { color: var(--text-faint); font-weight: 560; font-size: 11px; }
+.hold:hover { background: var(--surface-solid); }
+.hold.active {
+  background: linear-gradient(150deg, var(--accent-strong), var(--accent));
+  border-color: transparent; color: var(--accent-ink);
+  transform: scale(0.975);
+  box-shadow: var(--shadow-accent), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.hold.active svg, .hold.active small { color: var(--accent-ink); }
+.hold[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
+
+/* --- Camera panel --- */
+.cam-panel { height: 100%; display: grid; grid-template-rows: 1fr auto; gap: 12px; }
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 8px; min-height: 0;
+}
+.dpad .up    { grid-area: 1 / 2; }
+.dpad .left  { grid-area: 2 / 1; }
+.dpad .home  { grid-area: 2 / 2; }
+.dpad .right { grid-area: 2 / 3; }
+.dpad .down  { grid-area: 3 / 2; }
+.dpad .home {
+  border-radius: var(--r-sm); display: grid; place-items: center; gap: 4px;
+  background: var(--surface); border: 1px solid var(--hairline);
+  color: var(--text-dim); cursor: pointer; font-size: 11px; font-weight: 600;
+  transition: transform 120ms var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.dpad .home svg { width: 20px; height: 20px; }
+.dpad .home:hover { color: var(--text); background: var(--surface-solid); }
+.dpad .home:active { transform: scale(0.94); }
+
+/* --- Lights & modes panel --- */
+.stack { display: grid; gap: 10px; }
+.group-label {
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-faint); font-weight: 640; padding: 4px 2px 0;
+}
+.row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 14px; border-radius: var(--r-md);
+  background: var(--panel-2); border: 1px solid var(--hairline-soft);
+}
+.row .rtext { min-width: 0; flex: 1; }
+.row .rtitle { font-weight: 580; font-size: 14px; }
+.row .rdesc { font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
+.row .ricon { width: 34px; height: 34px; flex: none; border-radius: 10px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--hairline-soft); color: var(--text-dim); }
+.row .ricon svg { width: 18px; height: 18px; }
+
+/* iOS-style switch */
+.switch {
+  position: relative; width: 52px; height: 31px; flex: none; cursor: pointer;
+  border-radius: 999px; background: var(--hairline); border: 1px solid var(--hairline-soft);
+  transition: background var(--dur) var(--ease);
+}
+.switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 25px; height: 25px;
+  border-radius: 50%; background: #fff; box-shadow: var(--shadow-lo);
+  transition: transform var(--dur) var(--ease);
+}
+.switch[aria-checked="true"] { background: var(--go); border-color: transparent; }
+.switch[aria-checked="true"]::after { transform: translateX(21px); }
+.switch.accent[aria-checked="true"] { background: var(--accent); }
+
+/* --- System panel --- */
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 4px 2px; }
+.kv .k { font-size: 12.5px; color: var(--text-dim); padding: 7px 0; border-bottom: 1px solid var(--hairline-soft); }
+.kv .v { font-size: 12.5px; color: var(--text); text-align: right; padding: 7px 0; border-bottom: 1px solid var(--hairline-soft); font-weight: 560; }
+.kv .v a { color: var(--accent); text-decoration: none; }
+
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.metric {
+  padding: 12px; border-radius: var(--r-md);
+  background: var(--panel-2); border: 1px solid var(--hairline-soft);
+  display: grid; gap: 3px;
+}
+.metric .mlab { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); font-weight: 620; }
+.metric .mval { font-size: 20px; font-weight: 680; letter-spacing: -0.02em; }
+.metric .mval span { font-size: 12px; color: var(--text-faint); font-weight: 560; margin-left: 2px; }
+.metric[data-warn="1"] .mval { color: var(--warn); }
+
+.debug {
+  border-radius: var(--r-md); overflow: hidden;
+  background: var(--panel-2); border: 1px solid var(--hairline-soft);
+}
+.debug summary {
+  list-style: none; cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 14px; font-weight: 580; font-size: 13.5px;
+}
+.debug summary::-webkit-details-marker { display: none; }
+.debug summary .chev { margin-left: auto; transition: transform var(--dur) var(--ease); color: var(--text-faint); }
+.debug[open] summary .chev { transform: rotate(90deg); }
+.log {
+  max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 4px 12px 12px; font-size: 11.5px; line-height: 1.7;
+}
+.log .line { display: flex; gap: 8px; border-top: 1px solid var(--hairline-soft); padding-top: 4px; }
+.log .t { color: var(--text-faint); flex: none; }
+.log .d { color: var(--text-dim); word-break: break-all; }
+.log .d.out { color: var(--accent); }
+.log .d.in  { color: var(--text-dim); }
+.log .d.evt { color: var(--warn); }
+.log-tools { display: flex; gap: 8px; padding: 0 12px 10px; }
+.mini-btn {
+  padding: 6px 12px; border-radius: 9px; cursor: pointer; font-size: 12px; font-weight: 560;
+  background: var(--surface); border: 1px solid var(--hairline); color: var(--text-dim);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.mini-btn:hover { color: var(--text); }
+
+/* ---------- Persistent STOP ---------- */
+.stopbar {
+  z-index: var(--z-stop);
+  padding: 8px 0 calc(var(--safe-b) + 8px);
+}
+.stop {
+  width: 100%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 17px; border-radius: var(--r-md);
+  background: linear-gradient(180deg, var(--danger-strong), var(--danger));
+  color: var(--danger-ink); border: none;
+  font-size: 17px; font-weight: 760; letter-spacing: 0.14em; text-transform: uppercase;
+  box-shadow: 0 10px 30px var(--danger-soft), 0 3px 10px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.28);
+  transition: transform 100ms var(--ease), box-shadow var(--dur) var(--ease);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.stop svg { width: 24px; height: 24px; }
+.stop:hover { box-shadow: 0 12px 38px var(--danger-soft), 0 3px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.32); }
+.stop:active { transform: scale(0.985); }
+.stop.flash { animation: stopflash 420ms var(--ease); }
+@keyframes stopflash { 0% { box-shadow: 0 0 0 0 var(--danger); } 100% { box-shadow: 0 0 0 22px transparent; } }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: calc(var(--safe-b) + 96px); transform: translate(-50%, 20px);
+  z-index: var(--z-toast); opacity: 0; pointer-events: none;
+  padding: 11px 18px; border-radius: 999px;
+  background: var(--surface-solid); color: var(--text);
+  border: 1px solid var(--hairline); box-shadow: var(--shadow-hi);
+  font-size: 13px; font-weight: 560; max-width: 88vw; text-align: center;
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- Desktop layout ---------- */
+@media (min-width: 900px) {
+  .app { padding: calc(var(--safe-t) + 14px) 22px 16px; }
+  .main {
+    grid-template-rows: 1fr;
+    grid-template-columns: minmax(0, 1.55fr) minmax(360px, 0.9fr);
+    gap: 16px;
+    padding-top: 14px;
+  }
+  .stage { grid-row: 1; }
+  .dock { gap: 12px; }
+  .dock > .stopbar { order: 0; padding: 0 0 2px; }  /* STOP pinned at top of the dock on desktop */
+  .brand .sub { display: inline; }
+}
+@media (max-width: 899px) {
+  .brand .sub { display: none; }
+  .stat-chips .chip.ram { display: none; }
+  .tab .tlabel { display: none; }
+  .tab { padding: 12px 6px; }
+}
+@media (max-width: 520px) {
+  .topbar { gap: 8px; }
+  .brand { min-width: 0; flex-shrink: 1; }
+  .brand .name { max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conn .label { display: none; }            /* the coloured dot carries state; full label lives on the System tab */
+  .conn { padding: 6px; }
+  .stat-chips .chip.cpu { display: none; }    /* CPU / RAM live on the System tab */
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ TOP STATUS BAR ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="8" width="16" height="10" rx="3"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1.4"/>
+          <circle cx="9" cy="13" r="1.3"/><circle cx="15" cy="13" r="1.3"/><path d="M2 12v3M22 12v3"/>
+        </svg>
+      </span>
+      <span>
+        <div class="name">PiCar-B</div>
+        <div class="sub">Control Console</div>
+      </span>
+    </div>
+
+    <div class="conn" id="conn" data-state="connecting" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="label" id="connLabel">Connecting</span>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="stat-chips" aria-hidden="false">
+      <span class="chip temp" id="chipTemp" title="CPU temperature">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v10.5"/><circle cx="12" cy="17" r="3.2"/><path d="M9 6h3M9 9h3"/></svg>
+        <b id="tempVal">--</b>°C
+      </span>
+      <span class="chip cpu" id="chipCpu" title="CPU load">CPU <b id="cpuVal">--</b>%</span>
+      <span class="chip ram" id="chipRam" title="RAM usage">RAM <b id="ramVal">--</b>%</span>
+    </div>
+
+    <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle color theme">
+      <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></svg>
+    </button>
+  </header>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+
+    <!-- ---- Camera stage ---- -->
+    <section class="stage" id="stage" data-cam="connecting" aria-label="Live camera feed">
+      <div class="screen">
+        <img id="cam" alt="Live view from the robot camera" decoding="async" />
+        <div class="cam-hud">
+          <span class="cam-tag"><span class="rec"></span> Live</span>
+        </div>
+        <div class="cam-placeholder">
+          <div class="spin" aria-hidden="true"></div>
+          <p id="camMsg">Connecting to camera</p>
+          <p class="muted" id="camHint">Waiting for the video stream from the robot.</p>
+          <button class="cam-retry" id="camRetry">Reconnect camera</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- Control dock ---- -->
+    <div class="dock">
+
+      <!-- Persistent emergency STOP (order flips to top on desktop via CSS) -->
+      <div class="stopbar">
+        <button class="stop" id="stopBtn" aria-label="Emergency stop">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>
+          Stop
+        </button>
+      </div>
+
+      <!-- Tabs -->
+      <nav class="tabs" role="tablist" aria-label="Control sections">
+        <button class="tab" role="tab" id="tab-drive" aria-controls="panel-drive" aria-selected="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3 4H9l3-4zM12 21l3-4H9l3 4zM3 12l4-3v6l-4-3zM21 12l-4-3v6l4-3z"/></svg>
+          <span class="tlabel">Drive</span>
+        </button>
+        <button class="tab" role="tab" id="tab-cam" aria-controls="panel-cam" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><circle cx="12" cy="12.5" r="3.4"/><path d="M8 6l1.4-2h5.2L16 6"/></svg>
+          <span class="tlabel">Camera</span>
+        </button>
+        <button class="tab" role="tab" id="tab-light" aria-controls="panel-light" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4.9 1 .9 1.6v.5h5.2v-.5c0-.6.3-1.2.9-1.6A6 6 0 0 0 12 3z"/></svg>
+          <span class="tlabel">Lights</span>
+        </button>
+        <button class="tab" role="tab" id="tab-sys" aria-controls="panel-sys" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="1.6" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="8" cy="18" r="1.6" fill="currentColor" stroke="none"/></svg>
+          <span class="tlabel">System</span>
+        </button>
+      </nav>
+
+      <!-- Panels -->
+      <div class="panels">
+
+        <!-- DRIVE -->
+        <section class="panel" id="panel-drive" role="tabpanel" aria-labelledby="tab-drive" data-active="true">
+          <div class="panel-inner">
+            <div class="drive-grid">
+              <div class="speed-row">
+                <span class="lab">Speed</span>
+                <input type="range" id="speed" min="0" max="100" value="100" step="5" aria-label="Motor speed" />
+                <span class="val tabular" id="speedVal">100</span>
+              </div>
+              <div class="pads">
+                <div class="pad steer">
+                  <span class="pad-title">Steer</span>
+                  <button class="hold" data-cmd="left" data-stop="TS" aria-label="Steer left (hold)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+                    <small>Left</small>
+                  </button>
+                  <button class="hold" data-cmd="right" data-stop="TS" aria-label="Steer right (hold)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                    <small>Right</small>
+                  </button>
+                </div>
+                <div class="pad throttle">
+                  <span class="pad-title">Throttle</span>
+                  <button class="hold" data-cmd="forward" data-stop="DS" aria-label="Drive forward (hold)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+                    <small>Forward</small>
+                  </button>
+                  <button class="hold" data-cmd="backward" data-stop="DS" aria-label="Drive backward (hold)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                    <small>Reverse</small>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CAMERA -->
+        <section class="panel" id="panel-cam" role="tabpanel" aria-labelledby="tab-cam" data-active="false">
+          <div class="panel-inner">
+            <div class="cam-panel">
+              <div class="dpad">
+                <button class="hold up" data-cmd="up" data-stop="UDstop" aria-label="Tilt camera up (hold)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+                </button>
+                <button class="hold left" data-cmd="lookleft" data-stop="LRstop" aria-label="Pan camera left (hold)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+                </button>
+                <button class="home" id="camHome" aria-label="Center camera">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+                  <span>Center</span>
+                </button>
+                <button class="hold right" data-cmd="lookright" data-stop="LRstop" aria-label="Pan camera right (hold)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                </button>
+                <button class="hold down" data-cmd="down" data-stop="UDstop" aria-label="Tilt camera down (hold)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+              </div>
+              <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 12l6-3"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></div>
+                <div class="rtext">
+                  <div class="rtitle">Ultrasonic scan</div>
+                  <div class="rdesc">Sweep the distance sensor and log the result to the debug panel.</div>
+                </div>
+                <button class="mini-btn" id="scanBtn">Scan</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- LIGHTS & MODES -->
+        <section class="panel scrolls" id="panel-light" role="tabpanel" aria-labelledby="tab-light" data-active="false">
+          <div class="panel-inner">
+            <div class="stack">
+              <div class="group-label">Onboard lights</div>
+              <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4.9 1 .9 1.6v.5h5.2v-.5c0-.6.3-1.2.9-1.6A6 6 0 0 0 12 3z"/><path d="M9.4 18h5.2"/></svg></div>
+                <div class="rtext"><div class="rtitle">Light 1</div><div class="rdesc">Robot HAT switch port 1</div></div>
+                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-on="Switch_1_on" data-off="Switch_1_off" aria-label="Light 1"></div>
+              </div>
+              <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4.9 1 .9 1.6v.5h5.2v-.5c0-.6.3-1.2.9-1.6A6 6 0 0 0 12 3z"/><path d="M9.4 18h5.2"/></svg></div>
+                <div class="rtext"><div class="rtitle">Light 2</div><div class="rdesc">Robot HAT switch port 2</div></div>
+                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-on="Switch_2_on" data-off="Switch_2_off" aria-label="Light 2"></div>
+              </div>
+              <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4.9 1 .9 1.6v.5h5.2v-.5c0-.6.3-1.2.9-1.6A6 6 0 0 0 12 3z"/><path d="M9.4 18h5.2"/></svg></div>
+                <div class="rtext"><div class="rtitle">Light 3</div><div class="rdesc">Robot HAT switch port 3</div></div>
+                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-on="Switch_3_on" data-off="Switch_3_off" aria-label="Light 3"></div>
+              </div>
+
+              <div class="group-label">Autonomous modes</div>
+              <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 12l3-2"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><path d="M4 16h16"/></svg></div>
+                <div class="rtext"><div class="rtitle">Obstacle avoidance</div><div class="rdesc">Robot drives itself. Keep a clear area.</div></div>
+                <div class="switch" role="switch" aria-checked="false" tabindex="0" data-on="automatic" data-off="automaticOff" data-motion="1" aria-label="Obstacle avoidance"></div>
+              </div>
+              <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7c4 0 4 10 8 10s4-10 8-10"/></svg></div>
+                <div class="rtext"><div class="rtitle">Line tracking</div><div class="rdesc">Follows a line on the floor. Robot drives itself.</div></div>
+                <div class="switch" role="switch" aria-checked="false" tabindex="0" data-on="trackLine" data-off="trackLineOff" data-motion="1" aria-label="Line tracking"></div>
+              </div>
+              <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+                <div class="rtext"><div class="rtitle">Motion watch</div><div class="rdesc">Camera watches for movement.</div></div>
+                <div class="switch" role="switch" aria-checked="false" tabindex="0" data-on="motionGet" data-off="stopCV" aria-label="Motion watch"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SYSTEM -->
+        <section class="panel scrolls" id="panel-sys" role="tabpanel" aria-labelledby="tab-sys" data-active="false">
+          <div class="panel-inner">
+            <div class="stack">
+              <div class="metrics">
+                <div class="metric" id="mTemp"><span class="mlab">Temp</span><span class="mval tabular"><span id="mTempV">--</span><span>°C</span></span></div>
+                <div class="metric" id="mCpu"><span class="mlab">CPU</span><span class="mval tabular"><span id="mCpuV">--</span><span>%</span></span></div>
+                <div class="metric" id="mRam"><span class="mlab">RAM</span><span class="mval tabular"><span id="mRamV">--</span><span>%</span></span></div>
+              </div>
+
+              <div class="group-label">Connection</div>
+              <div class="kv">
+                <span class="k">Status</span><span class="v" id="sysState">Connecting</span>
+                <span class="k">Host</span><span class="v mono" id="sysHost">--</span>
+                <span class="k">Control socket</span><span class="v mono" id="sysWs">--</span>
+                <span class="k">Video feed</span><span class="v mono" id="sysVideo">--</span>
+                <span class="k">Latency</span><span class="v tabular" id="sysPing">-- ms</span>
+                <span class="k">Classic interface</span><span class="v"><a href="/legacy">Open legacy UI</a></span>
+              </div>
+
+              <div class="group-label">Activity log</div>
+              <details class="debug" id="debug">
+                <summary>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l4-3 4 3M8 18l4 3 4-3M4 12h4M16 12h4M9 12h6"/></svg>
+                  Debug console
+                  <svg class="chev" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                </summary>
+                <div class="log" id="log" aria-live="off"></div>
+                <div class="log-tools">
+                  <button class="mini-btn" id="clearLog">Clear</button>
+                  <button class="mini-btn" id="pingBtn">Ping</button>
+                </div>
+              </details>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /panels -->
+    </div><!-- /dock -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+(function () {
+  /* ---------------- Config ---------------- */
+  const HOST = location.hostname || "127.0.0.1";
+  const WS_URL = "ws://" + HOST + ":8888";
+  const VIDEO_URL = "http://" + HOST + ":5000/video_feed";
+  const CREDS = "admin:123456";
+  const HEARTBEAT_MS = 1000;      // must stay under the server watchdog timeout
+  const INFO_MS = 4000;
+  const RECONNECT_MIN = 800;
+  const RECONNECT_MAX = 6000;
+
+  const $  = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+  /* ---------------- State ---------------- */
+  let ws = null;
+  let authed = false;
+  let reconnectDelay = RECONNECT_MIN;
+  let heartbeatTimer = null;
+  let infoTimer = null;
+  let pingSentAt = 0;
+  const heldStops = new Set();   // stop-commands owed for currently-held buttons
+
+  /* ---------------- Logging ---------------- */
+  const logEl = $("#log");
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+  function stamp() { const d = new Date(); return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()); }
+  function log(kind, text) {
+    if (!logEl) return;
+    const line = document.createElement("div");
+    line.className = "line";
+    line.innerHTML = '<span class="t mono"></span><span class="d ' + kind + '"></span>';
+    line.children[0].textContent = stamp();
+    line.children[1].textContent = (kind === "out" ? "▶ " : kind === "in" ? "◀ " : "• ") + text;
+    logEl.appendChild(line);
+    while (logEl.children.length > 120) logEl.removeChild(logEl.firstChild);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  /* ---------------- Toast ---------------- */
+  const toastEl = $("#toast");
+  let toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+  }
+
+  /* ---------------- Connection UI ---------------- */
+  const connEl = $("#conn"), connLabel = $("#connLabel"), stageEl = $("#stage");
+  function setConn(state, label) {
+    connEl.dataset.state = state;
+    connLabel.textContent = label;
+    $("#sysState").textContent = label;
+  }
+
+  /* ---------------- Send ---------------- */
+  function send(cmd) {
+    if (!ws || ws.readyState !== WebSocket.OPEN || !authed) return false;
+    try { ws.send(cmd); if (cmd !== "heartbeat") log("out", cmd); return true; }
+    catch (e) { return false; }
+  }
+
+  /* ---------------- WebSocket lifecycle ---------------- */
+  function connect() {
+    setConn("connecting", "Connecting");
+    log("evt", "Opening " + WS_URL);
+    try { ws = new WebSocket(WS_URL); }
+    catch (e) { scheduleReconnect(); return; }
+
+    ws.onopen = function () {
+      authed = false;
+      reconnectDelay = RECONNECT_MIN;
+      ws.send(CREDS);                       // server expects credentials first
+      authed = true;                        // optimistic; refined on first server reply
+      setConn("open", "Connected");
+      toast("Connected to robot");
+      startHeartbeat();
+      startInfo();
+      send("get_info");
+    };
+
+    ws.onmessage = function (ev) {
+      const now = performance.now();
+      if (pingSentAt) { $("#sysPing").textContent = Math.max(0, Math.round(now - pingSentAt)) + " ms"; pingSentAt = 0; }
+      let data = ev.data, obj = null;
+      try { obj = JSON.parse(data); } catch (e) {}
+      if (obj && obj.title) handleInfo(obj);
+      else log("in", typeof data === "string" ? data.slice(0, 120) : "[binary]");
+    };
+
+    ws.onclose = function () {
+      authed = false;
+      stopHeartbeat(); stopInfo();
+      setConn("closed", "Disconnected");
+      log("evt", "Socket closed");
+      releaseAllHeld(false);                // clear UI; robot already stopped server-side
+      scheduleReconnect();
+    };
+
+    ws.onerror = function () { log("evt", "Socket error"); try { ws.close(); } catch (e) {} };
+  }
+
+  function scheduleReconnect() {
+    setConn("connecting", "Reconnecting");
+    setTimeout(connect, reconnectDelay);
+    reconnectDelay = Math.min(RECONNECT_MAX, Math.round(reconnectDelay * 1.6));
+  }
+
+  function startHeartbeat() { stopHeartbeat(); heartbeatTimer = setInterval(() => send("heartbeat"), HEARTBEAT_MS); }
+  function stopHeartbeat() { if (heartbeatTimer) clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  function startInfo() { stopInfo(); infoTimer = setInterval(() => { pingSentAt = performance.now(); send("get_info"); }, INFO_MS); }
+  function stopInfo() { if (infoTimer) clearInterval(infoTimer); infoTimer = null; }
+
+  /* ---------------- Telemetry ---------------- */
+  function handleInfo(obj) {
+    if (obj.title === "get_info" && Array.isArray(obj.data)) {
+      const [temp, cpu, ram] = obj.data;
+      setMetric("temp", temp); setMetric("cpu", cpu); setMetric("ram", ram);
+    } else if (obj.title === "scanResult") {
+      log("in", "scan: " + JSON.stringify(obj.data));
+      toast("Scan complete");
+    } else {
+      log("in", obj.title + (obj.data != null ? ": " + JSON.stringify(obj.data) : ""));
+    }
+  }
+  function setMetric(which, raw) {
+    const v = (raw === undefined || raw === null || raw === "") ? null : parseFloat(raw);
+    const txt = (v === null || isNaN(v)) ? "--" : (which === "temp" ? v.toFixed(1) : Math.round(v));
+    if (which === "temp") {
+      $("#tempVal").textContent = txt; $("#mTempV").textContent = txt;
+      const hot = v !== null && v >= 70;
+      $("#chipTemp").dataset.warn = hot ? "1" : "0";
+      $("#mTemp").dataset.warn = hot ? "1" : "0";
+    } else if (which === "cpu") {
+      $("#cpuVal").textContent = txt; $("#mCpuV").textContent = txt;
+      $("#mCpu").dataset.warn = (v !== null && v >= 90) ? "1" : "0";
+    } else if (which === "ram") {
+      $("#ramVal").textContent = txt; $("#mRamV").textContent = txt;
+      $("#mRam").dataset.warn = (v !== null && v >= 90) ? "1" : "0";
+    }
+  }
+
+  /* ---------------- Hold-to-drive controls ---------------- */
+  function pressStart(btn) {
+    if (btn.getAttribute("aria-disabled") === "true") return;
+    const cmd = btn.dataset.cmd, stop = btn.dataset.stop;
+    if (!send(cmd)) { toast("Not connected"); return; }
+    btn.classList.add("active");
+    if (stop) heldStops.add(stop);
+    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+  }
+  function pressEnd(btn) {
+    if (!btn.classList.contains("active")) return;
+    btn.classList.remove("active");
+    const stop = btn.dataset.stop;
+    if (stop) { send(stop); }   // momentary: always release
+  }
+  function releaseAllHeld(sendStops) {
+    $$(".hold.active").forEach(b => { b.classList.remove("active"); if (sendStops && b.dataset.stop) send(b.dataset.stop); });
+    if (sendStops) heldStops.forEach(s => send(s));
+    heldStops.clear();
+  }
+
+  $$(".hold").forEach(btn => {
+    btn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+      pressStart(btn);
+    });
+    const end = (e) => { pressEnd(btn); };
+    btn.addEventListener("pointerup", end);
+    btn.addEventListener("pointercancel", end);
+    btn.addEventListener("lostpointercapture", end);
+    // Keyboard accessibility: space/enter act as momentary hold
+    btn.addEventListener("keydown", (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); pressStart(btn); } });
+    btn.addEventListener("keyup",   (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); pressEnd(btn); } });
+    btn.addEventListener("contextmenu", (e) => e.preventDefault());
+  });
+
+  // Global backstops: never leave the robot driving if focus/visibility/pointer is lost.
+  window.addEventListener("pointerup", () => releaseAllHeld(true));
+  window.addEventListener("blur", () => releaseAllHeld(true));
+  document.addEventListener("visibilitychange", () => { if (document.hidden) { releaseAllHeld(true); send("E_STOP"); } });
+
+  /* ---------------- Emergency STOP ---------------- */
+  const stopBtn = $("#stopBtn");
+  function emergencyStop() {
+    releaseAllHeld(false);
+    // Send an explicit stop even if not "authed" yet — best effort.
+    const ok = send("E_STOP");
+    send("DS"); send("TS");
+    stopBtn.classList.remove("flash"); void stopBtn.offsetWidth; stopBtn.classList.add("flash");
+    // Reset autonomous-mode switches in the UI (they command the robot to move).
+    $$('.switch[data-motion="1"][aria-checked="true"]').forEach(sw => setSwitch(sw, false, true));
+    toast(ok ? "Emergency stop sent" : "Stop sent (reconnecting)");
+    if (navigator.vibrate) { try { navigator.vibrate([12, 30, 12]); } catch (e) {} }
+  }
+  stopBtn.addEventListener("click", emergencyStop);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" || e.code === "Space" && e.target === document.body) { e.preventDefault(); emergencyStop(); }
+  });
+
+  /* ---------------- Switches / toggles ---------------- */
+  function setSwitch(sw, on, silent) {
+    sw.setAttribute("aria-checked", on ? "true" : "false");
+    if (silent) return;
+    const cmd = on ? sw.dataset.on : sw.dataset.off;
+    if (!send(cmd)) { sw.setAttribute("aria-checked", on ? "false" : "true"); toast("Not connected"); return; }
+    if (on && sw.dataset.motion === "1") toast("Autonomous mode on — keep the area clear");
+  }
+  $$(".switch").forEach(sw => {
+    const toggle = () => setSwitch(sw, sw.getAttribute("aria-checked") !== "true", false);
+    sw.addEventListener("click", toggle);
+    sw.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
+  });
+
+  /* ---------------- Speed slider ---------------- */
+  const speed = $("#speed"), speedVal = $("#speedVal");
+  let speedTimer = null;
+  function paintSpeed() { speed.style.setProperty("--fill", speed.value + "%"); speedVal.textContent = speed.value; }
+  speed.addEventListener("input", () => {
+    paintSpeed();
+    clearTimeout(speedTimer);
+    speedTimer = setTimeout(() => send("wsB " + speed.value), 90);
+  });
+  paintSpeed();
+
+  /* ---------------- Camera home + scan ---------------- */
+  $("#camHome").addEventListener("click", () => { if (send("home")) toast("Camera centered"); else toast("Not connected"); });
+  $("#scanBtn").addEventListener("click", () => { if (send("scan")) toast("Scanning…"); else toast("Not connected"); });
+
+  /* ---------------- Tabs ---------------- */
+  const tabs = $$(".tab");
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => selectTab(tab));
+    tab.addEventListener("keydown", (e) => {
+      const i = tabs.indexOf(tab);
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        const n = (i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length;
+        tabs[n].focus(); selectTab(tabs[n]);
+      }
+    });
+  });
+  function selectTab(tab) {
+    releaseAllHeld(true);   // switching away from Drive must not leave motors running
+    tabs.forEach(t => {
+      const on = t === tab;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      $("#" + t.getAttribute("aria-controls")).dataset.active = on ? "true" : "false";
+    });
+  }
+
+  /* ---------------- Camera video stream ---------------- */
+  const cam = $("#cam"), camMsg = $("#camMsg"), camHint = $("#camHint");
+  let camRetryTimer = null;
+  function startCamera() {
+    stageEl.dataset.cam = "connecting";
+    camMsg.textContent = "Connecting to camera";
+    camHint.textContent = "Waiting for the video stream from the robot.";
+    clearTimeout(camRetryTimer);
+    cam.src = VIDEO_URL + "?t=" + Date.now();
+  }
+  cam.addEventListener("load", () => { stageEl.dataset.cam = "live"; });
+  cam.addEventListener("error", () => {
+    stageEl.dataset.cam = "offline";
+    camMsg.textContent = "Camera offline";
+    camHint.textContent = "The video stream is not responding. Check that the robot server is running.";
+    clearTimeout(camRetryTimer);
+    camRetryTimer = setTimeout(startCamera, 4000);   // auto-retry
+  });
+  $("#camRetry").addEventListener("click", startCamera);
+
+  /* ---------------- Theme ---------------- */
+  const SUN = '<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.2M12 19.8V22M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2 12h2.2M19.8 12H22M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/>';
+  const MOON = '<path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z"/>';
+  const AUTO = '<circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/>';
+  const themeBtn = $("#themeBtn"), themeIcon = $("#themeIcon");
+  const modes = ["auto", "light", "dark"];
+  let themeMode = localStorage.getItem("picar-theme") || "auto";
+  function applyTheme() {
+    if (themeMode === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", themeMode);
+    themeIcon.innerHTML = themeMode === "light" ? SUN : themeMode === "dark" ? MOON : AUTO;
+    themeBtn.title = "Theme: " + themeMode + " (tap to change)";
+    localStorage.setItem("picar-theme", themeMode);
+  }
+  themeBtn.addEventListener("click", () => {
+    themeMode = modes[(modes.indexOf(themeMode) + 1) % modes.length];
+    applyTheme(); toast("Theme: " + themeMode);
+  });
+  applyTheme();
+
+  /* ---------------- Debug tools ---------------- */
+  $("#clearLog").addEventListener("click", () => { logEl.innerHTML = ""; });
+  $("#pingBtn").addEventListener("click", () => { pingSentAt = performance.now(); if (!send("get_info")) toast("Not connected"); });
+
+  /* ---------------- System info panel ---------------- */
+  $("#sysHost").textContent = HOST;
+  $("#sysWs").textContent = WS_URL;
+  $("#sysVideo").textContent = HOST + ":5000/video_feed";
+
+  /* ---------------- Boot ---------------- */
+  startCamera();
+  connect();
+})();
+</script>
+</body>
+</html>

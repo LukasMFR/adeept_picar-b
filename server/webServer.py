@@ -209,9 +209,44 @@ def switchCtrl(command_input, response):
 		switch.switch(3,0) 
 
 
+# Time (seconds) the server will wait for any client message (commands or the
+# client heartbeat) before it assumes the link is dead and stops the motors.
+COMMAND_TIMEOUT = 2.5
+
+
+def emergency_stop():
+	"""Immediately halt all motion. Safe to call from any state."""
+	global direction_command, turn_command
+	direction_command = 'no'
+	turn_command = 'no'
+	try:
+		move.motorStop()
+	except Exception:
+		pass
+	try:
+		scGear.moveAngle(2, 0)          # re-centre steering
+	except Exception:
+		pass
+	try:
+		fuc.pause()                     # halt any autonomous function
+	except Exception:
+		pass
+	try:
+		flask_app.modeselect('none')    # stop CV-driven motion
+	except Exception:
+		pass
+	try:
+		RL.both_off()
+	except Exception:
+		pass
+
+
 def robotCtrl(command_input, response):
 	global direction_command, turn_command
-	if 'forward' == command_input:
+	if 'E_STOP' == command_input:
+		emergency_stop()
+
+	elif 'forward' == command_input:
 		direction_command = 'forward'
 		move.motor_left(1, 0, speed_set)
 		move.motor_right(1, 0, speed_set)
@@ -423,7 +458,20 @@ async def recv_msg(websocket):
 		}
 
 		data = ''
-		data = await websocket.recv()
+		try:
+			# Watchdog: if the client goes silent (it sends a heartbeat every
+			# second), assume the link is lost and stop the motors.
+			data = await asyncio.wait_for(websocket.recv(), timeout=COMMAND_TIMEOUT)
+		except asyncio.TimeoutError:
+			try:
+				move.motorStop()
+			except Exception:
+				pass
+			continue
+
+		if data == 'heartbeat':
+			continue
+
 		try:
 			data = json.loads(data)
 		except Exception as e:
@@ -508,7 +556,14 @@ async def recv_msg(websocket):
 
 async def main_logic(websocket, path):
 	await check_permit(websocket)
-	await recv_msg(websocket)
+	try:
+		await recv_msg(websocket)
+	finally:
+		# Safety: never leave the robot moving after the client disconnects.
+		try:
+			move.motorStop()
+		except Exception:
+			pass
 
 if __name__ == '__main__':
 	switch.switchSetup()

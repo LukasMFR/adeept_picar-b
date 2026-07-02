@@ -50,13 +50,19 @@ def sendicon(filename):
 def sendfonts(filename):
     return send_from_directory(dir_path+'/dist/fonts', filename)
 
+@app.route('/legacy')
+def legacy():
+    """Original Vue interface, kept intact for fallback."""
+    return send_from_directory(dir_path+'/dist', 'index.html')
+
 @app.route('/<path:filename>')
 def sendgen(filename):
     return send_from_directory(dir_path+'/dist', filename)
 
 @app.route('/')
 def index():
-    return send_from_directory(dir_path+'/dist', 'index.html')
+    """Modern control console (server/ui/index.html)."""
+    return send_from_directory(dir_path+'/ui', 'index.html')
 
 class webapp:
     def __init__(self):
