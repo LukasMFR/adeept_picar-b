@@ -1,0 +1,125 @@
+# Adeept PiCar-B — hardware configuration (Trixie migration)
+#
+# Single source of truth for pins, I2C, servo calibration and safety limits.
+# All pin numbers are BCM (same as the original code) and were extracted from the
+# working Buster sources — see docs/MIGRATION_NOTES.md for the provenance of each
+# value. Do not change a pin/channel/address here without a documented reason.
+
+meta:
+  name: "Adeept PiCar-B"
+  board: "Adeept Robot HAT"
+
+# ---------------------------------------------------------------------------
+# Global behaviour flags (read by every test script)
+# ---------------------------------------------------------------------------
+debug: false        # extra logging
+dry_run: false      # when true, hardware writes are logged but NOT executed
+
+# ---------------------------------------------------------------------------
+# I2C / PCA9685
+# ---------------------------------------------------------------------------
+i2c:
+  bus: 1            # /dev/i2c-1
+
+pca9685:
+  address: 0x40     # detected at 0x40 on the working setup
+  frequency_hz: 50  # servo PWM frequency
+
+# ---------------------------------------------------------------------------
+# DC motors (Adeept Robot HAT, driven via GPIO, from server/move.py)
+# Each motor: one PWM enable pin + two direction pins.
+# 'invert' flips forward/backward for that side (wiring dependent) — see
+# scripts/test_motor.py to determine the correct value safely.
+# ---------------------------------------------------------------------------
+motors:
+  pwm_frequency_hz: 1000
+  speed_limit_percent: 40   # hard cap applied by the test scripts (0-100)
+  test_speed_percent: 25    # default speed used by test_motor.py
+  test_duration_s: 0.6      # default run time per direction in test_motor.py
+  left:                     # original Motor_B
+    enable_pin: 17
+    in1_pin: 27
+    in2_pin: 18
+    invert: false
+  right:                    # original Motor_A
+    enable_pin: 4
+    in1_pin: 14
+    in2_pin: 15
+    invert: false
+
+# ---------------------------------------------------------------------------
+# Servos on the PCA9685. Values are RAW 12-bit ticks (0-4095) at 50 Hz,
+# matching the original servo.py / config.txt calibration so nothing needs
+# re-tuning. 'invert' mirrors motion around center.
+# ---------------------------------------------------------------------------
+servos:
+  test_step_ticks: 20       # how far test_servos.py nudges around center
+  move_delay_s: 0.02        # delay between micro-steps (slow, safe)
+  channels:
+    head_tilt:              # original pwm0 (camera up/down)
+      channel: 0
+      center: 300
+      min: 100
+      max: 500
+      invert: true
+    head_pan:               # original pwm1 (camera left/right + radar scan)
+      channel: 1
+      center: 300
+      min: 150
+      max: 450
+      invert: false
+    steering:               # original pwm2 (front wheel steering)
+      channel: 2
+      center: 300
+      min: 150
+      max: 450
+      invert: false
+
+# ---------------------------------------------------------------------------
+# WS2812 / NeoPixel strip (rpi_ws281x). GPIO 12 in the official code.
+# Chained IN -> OUT; the Robot HAT must feed the IN of the first module.
+# NOTE: rpi_ws281x needs root and does NOT work on Raspberry Pi 5.
+# ---------------------------------------------------------------------------
+ws2812:
+  gpio_pin: 12
+  led_count: 16             # RobotLight uses 16; adjust to your strip
+  brightness: 64            # 0-255; lowered from 255 for safe bench testing
+  freq_hz: 800000
+  dma: 10
+  channel: 0
+  invert: false
+
+# ---------------------------------------------------------------------------
+# Robot HAT high-side switch outputs / lights (from server/switch.py)
+# ---------------------------------------------------------------------------
+switches:
+  port1_pin: 5
+  port2_pin: 6
+  port3_pin: 13
+
+# ---------------------------------------------------------------------------
+# Ultrasonic distance sensor (HC-SR04 style, from server/ultra.py)
+# ---------------------------------------------------------------------------
+ultrasonic:
+  trigger_pin: 11
+  echo_pin: 8
+  max_distance_m: 2.0
+
+# ---------------------------------------------------------------------------
+# Line-tracking sensor (3 digital channels, from server/findline.py)
+# line_is_high: value that means "line detected" (1 in the original code)
+# ---------------------------------------------------------------------------
+line_tracking:
+  left_pin: 20
+  middle_pin: 16
+  right_pin: 19
+  line_is_high: true
+
+# ---------------------------------------------------------------------------
+# Camera
+# backend: picamera2 (modern, recommended on Trixie) or opencv (legacy fallback)
+# ---------------------------------------------------------------------------
+camera:
+  backend: picamera2
+  width: 640
+  height: 480

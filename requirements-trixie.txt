@@ -1,0 +1,42 @@
+# Project Python dependencies for Raspberry Pi OS (Lite) 64-bit, Debian 13 "Trixie".
+#
+# Install INSIDE a virtual environment created with:
+#     python3 -m venv --system-site-packages .venv
+#     source .venv/bin/activate
+#     pip install --upgrade pip
+#     pip install -r requirements-trixie.txt
+#
+# NOT via sudo pip, and NOT globally. See docs/TRIXIE_SETUP.md.
+#
+# Some heavy, system-integrated packages are intentionally NOT listed here and
+# must come from apt so they match the system Python / kernel:
+#   python3-opencv      -> cv2
+#   python3-picamera2   -> Picamera2 (camera)
+#   python3-smbus       -> smbus (I2C)
+# The --system-site-packages venv makes those apt modules visible here.
+
+# --- Config / utility ---
+PyYAML                                # config/robot.yaml loader
+
+# --- Servo / PCA9685 (modern replacement for the abandoned Adafruit_PCA9685) ---
+adafruit-circuitpython-pca9685        # low-level PCA9685 (raw-tick driving)
+adafruit-circuitpython-servokit       # optional higher-level servo helper
+adafruit-blinka                       # board/busio backend for CircuitPython libs
+
+# --- GPIO: motors, ultrasonic, line sensors, switches ---
+# gpiozero replaces RPi.GPIO, which is broken on kernel 6.x / Pi 5.
+gpiozero
+lgpio                                 # default gpiozero pin factory on Trixie
+
+# --- WS2812 / NeoPixel ---
+# Works on Pi 4 and earlier (needs root). Does NOT work on Pi 5 — see MIGRATION_NOTES.
+rpi_ws281x
+
+# --- Web / backend (used later; harmless to install now) ---
+Flask
+Flask-CORS
+websockets
+pyzmq
+psutil
+imutils
+pybase64
