@@ -57,6 +57,26 @@ inline SVG for the same reason.
 Movement controls are **momentary**: the robot moves only while a control is held
 and stops the instant you release, lose focus, switch tabs, or background the page.
 
+### Keyboard controls (desktop)
+
+The on-screen buttons show their key hints, and pressing a key drives the same
+button (it lights up "pressed" while the key is held). Keys are hidden on
+touch-only devices.
+
+| Keys | Action |
+| ---- | ------ |
+| `W` / `Up`  | Forward (hold) |
+| `S` / `Down` | Reverse (hold) |
+| `A` / `Left` | Steer left (hold) |
+| `D` / `Right` | Steer right (hold) |
+| `I` `K` `J` `L` | Camera tilt up / down, pan left / right (hold) |
+| `H` | Center camera |
+| `Esc` | Emergency stop (works anywhere) |
+| `Space` | Emergency stop (when no control is focused) |
+
+Hold `W` and `A` together to drive forward while steering, and so on. Releasing a
+key sends the matching stop, exactly like lifting a finger.
+
 ## Safety model
 
 The UI and backend cooperate so the robot never keeps moving unattended:

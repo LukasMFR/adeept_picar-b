@@ -239,8 +239,12 @@ h1,h2,h3,p { margin: 0; }
   font-size: 12px; color: var(--text-dim); white-space: nowrap;
 }
 .chip b { color: var(--text); font-weight: 620; font-size: 12.5px; }
-.chip[data-warn="1"] { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
-.chip[data-warn="1"] b { color: var(--warn); }
+/* Live load colour-coding (green ok, amber warm, red hot) */
+.chip[data-sev="ok"] b   { color: var(--go); }
+.chip[data-sev="warn"] b { color: var(--warn); }
+.chip[data-sev="hot"] b  { color: var(--danger); }
+.chip[data-sev="hot"]    { background: var(--danger-soft); border-color: transparent; }
+.chip[data-sev="warn"]   { background: var(--warn-soft); border-color: transparent; }
 
 .icon-btn {
   width: 38px; height: 38px; flex: none;
@@ -424,31 +428,37 @@ input[type="range"]::-moz-range-thumb {
   border: 2px solid var(--accent); box-shadow: var(--shadow-lo);
 }
 
+/* Comfortable, capped button height so the cluster never stretches to fill a tall
+   desktop panel. --pad-btn scales with viewport but stays in a sane range. */
+:root { --pad-btn: clamp(78px, 14vh, 116px); }
 .pads {
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0;
+  align-self: center;              /* centre the cluster in the panel */
+  width: 100%; max-width: 460px; margin-inline: auto;
 }
 .pad {
   position: relative;
   border-radius: var(--r-md);
   background: var(--panel-2);
   border: 1px solid var(--hairline-soft);
-  padding: 10px;
+  padding: 32px 10px 10px;
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 .pad-title {
-  position: absolute; top: 10px; left: 12px;
+  position: absolute; top: 11px; left: 13px;
   font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--text-faint); font-weight: 600; pointer-events: none;
 }
-/* Throttle = vertical (fwd/back); Steer = horizontal (left/right) */
-.pad.throttle { grid-template-rows: 1fr 1fr; padding-top: 30px; }
-.pad.steer    { grid-template-columns: 1fr 1fr; padding-top: 30px; align-items: stretch; }
+/* Both pads share height (align-items:stretch default); buttons keep a fixed row
+   height and are centred, so steer and throttle read as balanced cards. */
+.pad.throttle { grid-template-rows: var(--pad-btn) var(--pad-btn); }
+.pad.steer    { grid-template-columns: 1fr 1fr; grid-template-rows: var(--pad-btn); align-content: center; }
 
 .hold {
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   touch-action: none;
-  display: grid; place-items: center; gap: 6px;
+  display: grid; place-items: center; gap: 5px;
   border-radius: var(--r-sm);
   background: var(--surface);
   border: 1px solid var(--hairline);
@@ -457,8 +467,23 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
   transition: transform 120ms var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
   font-weight: 600; font-size: 12.5px;
-  min-height: 56px;
+  min-height: 0;
 }
+
+/* On-screen keyboard hints (desktop only) */
+.keys { display: flex; gap: 5px; align-items: center; }
+.kbd {
+  display: inline-grid; place-items: center;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 6px; font-size: 11px; font-weight: 640; line-height: 1;
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  color: var(--text-dim); background: var(--panel-2);
+  border: 1px solid var(--hairline); box-shadow: 0 1px 0 var(--hairline-soft);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.hold.active .kbd { color: var(--accent-ink); background: rgba(255,255,255,0.22); border-color: transparent; box-shadow: none; }
+@media (max-width: 899px) { .keys { display: none; } }   /* no physical keyboard on phones */
+@media (hover: none) and (pointer: coarse) { .keys { display: none; } }
 .hold svg { width: 30px; height: 30px; color: var(--text-dim); transition: color var(--dur) var(--ease); }
 .hold small { color: var(--text-faint); font-weight: 560; font-size: 11px; }
 .hold:hover { background: var(--surface-solid); }
@@ -536,12 +561,18 @@ input[type="range"]::-moz-range-thumb {
 .metric {
   padding: 12px; border-radius: var(--r-md);
   background: var(--panel-2); border: 1px solid var(--hairline-soft);
-  display: grid; gap: 3px;
+  display: grid; gap: 5px;
+  color: var(--text-faint);                 /* severity drives this; value + bar inherit it */
 }
+.metric[data-sev="ok"]   { color: var(--go); }
+.metric[data-sev="warn"] { color: var(--warn); }
+.metric[data-sev="hot"]  { color: var(--danger); }
 .metric .mlab { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); font-weight: 620; }
-.metric .mval { font-size: 20px; font-weight: 680; letter-spacing: -0.02em; }
-.metric .mval span { font-size: 12px; color: var(--text-faint); font-weight: 560; margin-left: 2px; }
-.metric[data-warn="1"] .mval { color: var(--warn); }
+.metric .mval { font-size: 20px; font-weight: 680; letter-spacing: -0.02em; color: currentColor; }
+.metric[data-sev="idle"] .mval { color: var(--text); }
+.metric .mval span:last-child { font-size: 12px; color: var(--text-faint); font-weight: 560; margin-left: 2px; }  /* unit stays muted; the value keeps the severity colour */
+.metric .meter { display: block; height: 6px; border-radius: 999px; background: var(--hairline-soft); overflow: hidden; }
+.metric .meter i { display: block; height: 100%; width: 0%; border-radius: 999px; background: currentColor; transition: width 500ms var(--ease), background 300ms var(--ease); }
 
 .debug {
   border-radius: var(--r-md); overflow: hidden;
@@ -609,17 +640,33 @@ input[type="range"]::-moz-range-thumb {
 
 /* ---------- Desktop layout ---------- */
 @media (min-width: 900px) {
-  .app { padding: calc(var(--safe-t) + 14px) 22px 16px; }
+  .app { padding: calc(var(--safe-t) + 16px) 24px 18px; }
   .main {
     grid-template-rows: 1fr;
-    grid-template-columns: minmax(0, 1.55fr) minmax(360px, 0.9fr);
-    gap: 16px;
-    padding-top: 14px;
+    grid-template-columns: minmax(0, 1.5fr) minmax(380px, 0.82fr);
+    gap: 20px;
+    padding-top: 16px;
+    align-items: center;                 /* centre both columns; no full-height stretch */
+    justify-content: center;
   }
-  .stage { grid-row: 1; }
-  .dock { gap: 12px; }
+  /* Camera fills its own frame instead of a tall letterboxed box */
+  .stage {
+    grid-row: 1;
+    align-self: center;
+    aspect-ratio: 4 / 3;
+    height: auto;
+    max-height: 84dvh;
+    width: 100%;
+    max-width: calc((84dvh) * 4 / 3);
+    margin-inline: auto;
+  }
+  .dock { gap: 14px; align-self: center; max-height: 86dvh; }
   .dock > .stopbar { order: 0; padding: 0 0 2px; }  /* STOP pinned at top of the dock on desktop */
   .brand .sub { display: inline; }
+}
+/* Cap the whole console on large monitors so it never sprawls */
+@media (min-width: 1500px) {
+  .app { max-width: 1440px; }
 }
 @media (max-width: 899px) {
   .brand .sub { display: none; }
@@ -746,24 +793,28 @@ input[type="range"]::-moz-range-thumb {
               <div class="pads">
                 <div class="pad steer">
                   <span class="pad-title">Steer</span>
-                  <button class="hold" data-cmd="left" data-stop="TS" aria-label="Steer left (hold)">
+                  <button class="hold" data-cmd="left" data-stop="TS" aria-label="Steer left (hold, or press A / Left arrow)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
                     <small>Left</small>
+                    <span class="keys"><span class="kbd">A</span><span class="kbd">&larr;</span></span>
                   </button>
-                  <button class="hold" data-cmd="right" data-stop="TS" aria-label="Steer right (hold)">
+                  <button class="hold" data-cmd="right" data-stop="TS" aria-label="Steer right (hold, or press D / Right arrow)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
                     <small>Right</small>
+                    <span class="keys"><span class="kbd">D</span><span class="kbd">&rarr;</span></span>
                   </button>
                 </div>
                 <div class="pad throttle">
                   <span class="pad-title">Throttle</span>
-                  <button class="hold" data-cmd="forward" data-stop="DS" aria-label="Drive forward (hold)">
+                  <button class="hold" data-cmd="forward" data-stop="DS" aria-label="Drive forward (hold, or press W / Up arrow)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
                     <small>Forward</small>
+                    <span class="keys"><span class="kbd">W</span><span class="kbd">&uarr;</span></span>
                   </button>
-                  <button class="hold" data-cmd="backward" data-stop="DS" aria-label="Drive backward (hold)">
+                  <button class="hold" data-cmd="backward" data-stop="DS" aria-label="Drive backward (hold, or press S / Down arrow)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
                     <small>Reverse</small>
+                    <span class="keys"><span class="kbd">S</span><span class="kbd">&darr;</span></span>
                   </button>
                 </div>
               </div>
@@ -776,21 +827,26 @@ input[type="range"]::-moz-range-thumb {
           <div class="panel-inner">
             <div class="cam-panel">
               <div class="dpad">
-                <button class="hold up" data-cmd="up" data-stop="UDstop" aria-label="Tilt camera up (hold)">
+                <button class="hold up" data-cmd="up" data-stop="UDstop" aria-label="Tilt camera up (hold, or press I)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+                  <span class="keys"><span class="kbd">I</span></span>
                 </button>
-                <button class="hold left" data-cmd="lookleft" data-stop="LRstop" aria-label="Pan camera left (hold)">
+                <button class="hold left" data-cmd="lookleft" data-stop="LRstop" aria-label="Pan camera left (hold, or press J)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+                  <span class="keys"><span class="kbd">J</span></span>
                 </button>
-                <button class="home" id="camHome" aria-label="Center camera">
+                <button class="home" id="camHome" aria-label="Center camera (or press H)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
                   <span>Center</span>
+                  <span class="keys"><span class="kbd">H</span></span>
                 </button>
-                <button class="hold right" data-cmd="lookright" data-stop="LRstop" aria-label="Pan camera right (hold)">
+                <button class="hold right" data-cmd="lookright" data-stop="LRstop" aria-label="Pan camera right (hold, or press L)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  <span class="keys"><span class="kbd">L</span></span>
                 </button>
-                <button class="hold down" data-cmd="down" data-stop="UDstop" aria-label="Tilt camera down (hold)">
+                <button class="hold down" data-cmd="down" data-stop="UDstop" aria-label="Tilt camera down (hold, or press K)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                  <span class="keys"><span class="kbd">K</span></span>
                 </button>
               </div>
               <div class="row">
@@ -851,9 +907,9 @@ input[type="range"]::-moz-range-thumb {
           <div class="panel-inner">
             <div class="stack">
               <div class="metrics">
-                <div class="metric" id="mTemp"><span class="mlab">Temp</span><span class="mval tabular"><span id="mTempV">--</span><span>°C</span></span></div>
-                <div class="metric" id="mCpu"><span class="mlab">CPU</span><span class="mval tabular"><span id="mCpuV">--</span><span>%</span></span></div>
-                <div class="metric" id="mRam"><span class="mlab">RAM</span><span class="mval tabular"><span id="mRamV">--</span><span>%</span></span></div>
+                <div class="metric" id="mTemp" data-sev="idle"><span class="mlab">Temp</span><span class="mval tabular"><span id="mTempV">--</span><span>°C</span></span><span class="meter"><i id="mTempBar"></i></span></div>
+                <div class="metric" id="mCpu" data-sev="idle"><span class="mlab">CPU</span><span class="mval tabular"><span id="mCpuV">--</span><span>%</span></span><span class="meter"><i id="mCpuBar"></i></span></div>
+                <div class="metric" id="mRam" data-sev="idle"><span class="mlab">RAM</span><span class="mval tabular"><span id="mRamV">--</span><span>%</span></span><span class="meter"><i id="mRamBar"></i></span></div>
               </div>
 
               <div class="group-label">Connection</div>
@@ -1019,20 +1075,30 @@ input[type="range"]::-moz-range-thumb {
       log("in", obj.title + (obj.data != null ? ": " + JSON.stringify(obj.data) : ""));
     }
   }
+  // Thresholds -> severity level (drives the green/amber/red colour coding).
+  function sev(which, v) {
+    if (v === null || isNaN(v)) return "idle";
+    if (which === "temp") return v >= 70 ? "hot" : v >= 55 ? "warn" : "ok";
+    return v >= 85 ? "hot" : v >= 60 ? "warn" : "ok";     // cpu / ram (percent)
+  }
+  function pct(which, v) {
+    if (v === null || isNaN(v)) return 0;
+    const p = which === "temp" ? (v / 85) * 100 : v;       // temp scaled to ~85C
+    return Math.max(0, Math.min(100, p));
+  }
   function setMetric(which, raw) {
     const v = (raw === undefined || raw === null || raw === "") ? null : parseFloat(raw);
-    const txt = (v === null || isNaN(v)) ? "--" : (which === "temp" ? v.toFixed(1) : Math.round(v));
+    const txt = (v === null || isNaN(v)) ? "--" : (which === "temp" ? v.toFixed(1) : String(Math.round(v)));
+    const level = sev(which, v), width = pct(which, v) + "%";
     if (which === "temp") {
       $("#tempVal").textContent = txt; $("#mTempV").textContent = txt;
-      const hot = v !== null && v >= 70;
-      $("#chipTemp").dataset.warn = hot ? "1" : "0";
-      $("#mTemp").dataset.warn = hot ? "1" : "0";
+      $("#chipTemp").dataset.sev = level; $("#mTemp").dataset.sev = level; $("#mTempBar").style.width = width;
     } else if (which === "cpu") {
       $("#cpuVal").textContent = txt; $("#mCpuV").textContent = txt;
-      $("#mCpu").dataset.warn = (v !== null && v >= 90) ? "1" : "0";
+      $("#chipCpu").dataset.sev = level; $("#mCpu").dataset.sev = level; $("#mCpuBar").style.width = width;
     } else if (which === "ram") {
       $("#ramVal").textContent = txt; $("#mRamV").textContent = txt;
-      $("#mRam").dataset.warn = (v !== null && v >= 90) ? "1" : "0";
+      $("#chipRam").dataset.sev = level; $("#mRam").dataset.sev = level; $("#mRamBar").style.width = width;
     }
   }
 
@@ -1067,9 +1133,9 @@ input[type="range"]::-moz-range-thumb {
     btn.addEventListener("pointerup", end);
     btn.addEventListener("pointercancel", end);
     btn.addEventListener("lostpointercapture", end);
-    // Keyboard accessibility: space/enter act as momentary hold
-    btn.addEventListener("keydown", (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); pressStart(btn); } });
-    btn.addEventListener("keyup",   (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); pressEnd(btn); } });
+    // Focused-button accessibility: Enter acts as a momentary hold.
+    btn.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.repeat) { e.preventDefault(); pressStart(btn); } });
+    btn.addEventListener("keyup",   (e) => { if (e.key === "Enter") { e.preventDefault(); pressEnd(btn); } });
     btn.addEventListener("contextmenu", (e) => e.preventDefault());
   });
 
@@ -1092,9 +1158,56 @@ input[type="range"]::-moz-range-thumb {
     if (navigator.vibrate) { try { navigator.vibrate([12, 30, 12]); } catch (e) {} }
   }
   stopBtn.addEventListener("click", emergencyStop);
+
+  /* ---------------- Global keyboard control ----------------
+     Physical keys drive the same on-screen hold buttons, so the pressed
+     state, command send, and release backstops are all shared with touch. */
+  const KEYMAP = {
+    ArrowUp: "forward", KeyW: "forward",
+    ArrowDown: "backward", KeyS: "backward",
+    ArrowLeft: "left", KeyA: "left",
+    ArrowRight: "right", KeyD: "right",
+    KeyI: "up", KeyK: "down", KeyJ: "lookleft", KeyL: "lookright",
+  };
+  const keyHeld = new Set();
+  function isTypingTarget(el) {
+    if (!el) return false;
+    if (el.isContentEditable || el.tagName === "TEXTAREA") return true;
+    if (el.tagName === "INPUT") {
+      const t = (el.type || "").toLowerCase();
+      return !["range", "checkbox", "radio", "button", "submit", "color"].includes(t);
+    }
+    return false;
+  }
+  function holdFor(cmd) { return document.querySelector('.hold[data-cmd="' + cmd + '"]'); }
+
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" || e.code === "Space" && e.target === document.body) { e.preventDefault(); emergencyStop(); }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;      // leave browser shortcuts alone
+    if (isTypingTarget(e.target)) return;
+    // Emergency stop: Escape anywhere, Space when nothing is focused.
+    if (e.key === "Escape" || (e.code === "Space" && e.target === document.body)) {
+      e.preventDefault(); emergencyStop(); return;
+    }
+    // Camera home.
+    if (e.code === "KeyH") { e.preventDefault(); $("#camHome").click(); return; }
+    // Don't hijack arrows when a widget that uses them is focused (tabs, slider).
+    const role = e.target && e.target.getAttribute && e.target.getAttribute("role");
+    if (e.key.indexOf("Arrow") === 0 && (role === "tab" || e.target.id === "speed")) return;
+    const cmd = KEYMAP[e.code];
+    if (!cmd) return;
+    e.preventDefault();
+    if (e.repeat || keyHeld.has(cmd)) return;            // ignore auto-repeat / already held
+    const btn = holdFor(cmd);
+    if (btn) { keyHeld.add(cmd); pressStart(btn); }
   });
+  document.addEventListener("keyup", (e) => {
+    const cmd = KEYMAP[e.code];
+    if (!cmd) return;
+    keyHeld.delete(cmd);
+    const btn = holdFor(cmd);
+    if (btn) pressEnd(btn);
+  });
+  window.addEventListener("blur", () => keyHeld.clear());   // releaseAllHeld already sends the stops
 
   /* ---------------- Switches / toggles ---------------- */
   function setSwitch(sw, on, silent) {
