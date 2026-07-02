@@ -75,7 +75,21 @@ touch-only devices.
 | `Space` | Emergency stop (when no control is focused) |
 
 Hold `W` and `A` together to drive forward while steering, and so on. Releasing a
-key sends the matching stop, exactly like lifting a finger.
+key sends the matching stop, exactly like lifting a finger. On a touch screen you
+can hold two buttons at once the same way (for example steer + throttle) — each
+finger is tracked independently.
+
+### Settings
+
+The System tab has a Settings section, stored locally as a versioned JSON object
+(`localStorage["picar-settings"]`) so new options can be added later without
+breaking existing saves:
+
+- **Invert forward / reverse** — swaps the throttle direction if the robot drives
+  the opposite way to the buttons (for example if the motors are wired reversed).
+- **Invert steering** — swaps left and right.
+
+Inversion is applied to both the on-screen buttons and the keyboard.
 
 ## Safety model
 

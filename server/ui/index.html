@@ -428,32 +428,28 @@ input[type="range"]::-moz-range-thumb {
   border: 2px solid var(--accent); box-shadow: var(--shadow-lo);
 }
 
-/* Comfortable, capped button height so the cluster never stretches to fill a tall
-   desktop panel. --pad-btn scales with viewport but stays in a sane range. */
-:root { --pad-btn: clamp(78px, 14vh, 116px); }
+/* Desktop caps the button height; mobile lets the buttons fill their card for big
+   touch targets. --pad-btn is only used on desktop. */
+:root { --pad-btn: clamp(84px, 13vh, 116px); }
+/* Every drive card uses the SAME even inset (matches .speed-row) so the three
+   boxes read as one set. */
 .pads {
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0;
-  align-self: center;              /* centre the cluster in the panel */
-  width: 100%; max-width: 460px; margin-inline: auto;
 }
 .pad {
-  position: relative;
   border-radius: var(--r-md);
   background: var(--panel-2);
   border: 1px solid var(--hairline-soft);
-  padding: 32px 10px 10px;
-  display: grid;
-  gap: 10px;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 10px;
 }
 .pad-title {
-  position: absolute; top: 11px; left: 13px;
   font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--text-faint); font-weight: 600; pointer-events: none;
+  color: var(--text-faint); font-weight: 600;
 }
-/* Both pads share height (align-items:stretch default); buttons keep a fixed row
-   height and are centred, so steer and throttle read as balanced cards. */
-.pad.throttle { grid-template-rows: var(--pad-btn) var(--pad-btn); }
-.pad.steer    { grid-template-columns: 1fr 1fr; grid-template-rows: var(--pad-btn); align-content: center; }
+.pad-btns { flex: 1; display: grid; gap: 10px; min-height: 0; }
+.pad.steer    .pad-btns { grid-template-columns: 1fr 1fr; }
+.pad.throttle .pad-btns { grid-template-rows: 1fr 1fr; }
 
 .hold {
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
@@ -467,7 +463,7 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
   transition: transform 120ms var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
   font-weight: 600; font-size: 12.5px;
-  min-height: 0;
+  min-height: 60px;
 }
 
 /* On-screen keyboard hints (desktop only) */
@@ -497,12 +493,15 @@ input[type="range"]::-moz-range-thumb {
 .hold[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
 
 /* --- Camera panel --- */
-.cam-panel { height: 100%; display: grid; grid-template-rows: 1fr auto; gap: 12px; }
+.cam-panel { height: 100%; display: grid; grid-template-rows: 1fr auto; gap: 14px; min-height: 0; }
+/* Compact, centred square D-pad so it never overlaps the scan row below it. */
 .dpad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  gap: 8px; min-height: 0;
+  gap: 10px; min-height: 0;
+  align-self: center; justify-self: center;
+  width: 100%; max-width: 300px; aspect-ratio: 1 / 1; margin-inline: auto;
 }
 .dpad .up    { grid-area: 1 / 2; }
 .dpad .left  { grid-area: 2 / 1; }
@@ -611,16 +610,16 @@ input[type="range"]::-moz-range-thumb {
 }
 .stop {
   width: 100%; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-  padding: 17px; border-radius: var(--r-md);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 12px; border-radius: var(--r-sm);
   background: linear-gradient(180deg, var(--danger-strong), var(--danger));
   color: var(--danger-ink); border: none;
-  font-size: 17px; font-weight: 760; letter-spacing: 0.14em; text-transform: uppercase;
-  box-shadow: 0 10px 30px var(--danger-soft), 0 3px 10px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.28);
+  font-size: 14.5px; font-weight: 720; letter-spacing: 0.12em; text-transform: uppercase;
+  box-shadow: 0 6px 20px var(--danger-soft), 0 2px 6px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.24);
   transition: transform 100ms var(--ease), box-shadow var(--dur) var(--ease);
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.stop svg { width: 24px; height: 24px; }
+.stop svg { width: 19px; height: 19px; }
 .stop:hover { box-shadow: 0 12px 38px var(--danger-soft), 0 3px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.32); }
 .stop:active { transform: scale(0.985); }
 .stop.flash { animation: stopflash 420ms var(--ease); }
@@ -663,6 +662,11 @@ input[type="range"]::-moz-range-thumb {
   .dock { gap: 14px; align-self: center; max-height: 86dvh; }
   .dock > .stopbar { order: 0; padding: 0 0 2px; }  /* STOP pinned at top of the dock on desktop */
   .brand .sub { display: inline; }
+  /* Desktop: cap the drive buttons and centre them so the pads don't stretch. */
+  .pads { align-self: center; max-width: 460px; margin-inline: auto; width: 100%; }
+  .pad.steer    .pad-btns { grid-template-rows: var(--pad-btn); align-content: center; }
+  .pad.throttle .pad-btns { grid-template-rows: var(--pad-btn) var(--pad-btn); align-content: center; }
+  .stop { max-width: 100%; }
 }
 /* Cap the whole console on large monitors so it never sprawls */
 @media (min-width: 1500px) {
@@ -793,29 +797,33 @@ input[type="range"]::-moz-range-thumb {
               <div class="pads">
                 <div class="pad steer">
                   <span class="pad-title">Steer</span>
-                  <button class="hold" data-cmd="left" data-stop="TS" aria-label="Steer left (hold, or press A / Left arrow)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-                    <small>Left</small>
-                    <span class="keys"><span class="kbd">A</span><span class="kbd">&larr;</span></span>
-                  </button>
-                  <button class="hold" data-cmd="right" data-stop="TS" aria-label="Steer right (hold, or press D / Right arrow)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-                    <small>Right</small>
-                    <span class="keys"><span class="kbd">D</span><span class="kbd">&rarr;</span></span>
-                  </button>
+                  <div class="pad-btns">
+                    <button class="hold" data-cmd="left" data-stop="TS" aria-label="Steer left (hold, or press A / Left arrow)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+                      <small>Left</small>
+                      <span class="keys"><span class="kbd">A</span><span class="kbd">&larr;</span></span>
+                    </button>
+                    <button class="hold" data-cmd="right" data-stop="TS" aria-label="Steer right (hold, or press D / Right arrow)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      <small>Right</small>
+                      <span class="keys"><span class="kbd">D</span><span class="kbd">&rarr;</span></span>
+                    </button>
+                  </div>
                 </div>
                 <div class="pad throttle">
                   <span class="pad-title">Throttle</span>
-                  <button class="hold" data-cmd="forward" data-stop="DS" aria-label="Drive forward (hold, or press W / Up arrow)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
-                    <small>Forward</small>
-                    <span class="keys"><span class="kbd">W</span><span class="kbd">&uarr;</span></span>
-                  </button>
-                  <button class="hold" data-cmd="backward" data-stop="DS" aria-label="Drive backward (hold, or press S / Down arrow)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-                    <small>Reverse</small>
-                    <span class="keys"><span class="kbd">S</span><span class="kbd">&darr;</span></span>
-                  </button>
+                  <div class="pad-btns">
+                    <button class="hold" data-cmd="forward" data-stop="DS" aria-label="Drive forward (hold, or press W / Up arrow)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+                      <small>Forward</small>
+                      <span class="keys"><span class="kbd">W</span><span class="kbd">&uarr;</span></span>
+                    </button>
+                    <button class="hold" data-cmd="backward" data-stop="DS" aria-label="Drive backward (hold, or press S / Down arrow)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                      <small>Reverse</small>
+                      <span class="keys"><span class="kbd">S</span><span class="kbd">&darr;</span></span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -912,6 +920,18 @@ input[type="range"]::-moz-range-thumb {
                 <div class="metric" id="mRam" data-sev="idle"><span class="mlab">RAM</span><span class="mval tabular"><span id="mRamV">--</span><span>%</span></span><span class="meter"><i id="mRamBar"></i></span></div>
               </div>
 
+              <div class="group-label">Settings</div>
+              <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></div>
+                <div class="rtext"><div class="rtitle">Invert forward / reverse</div><div class="rdesc">Swap the throttle direction if the robot drives the opposite way to the buttons.</div></div>
+                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertThrottle" aria-label="Invert forward and reverse"></div>
+              </div>
+              <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4L4 8l4 4M4 8h13M16 20l4-4-4-4M20 16H7"/></svg></div>
+                <div class="rtext"><div class="rtitle">Invert steering</div><div class="rdesc">Swap left and right if your steering is reversed.</div></div>
+                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertSteering" aria-label="Invert steering"></div>
+              </div>
+
               <div class="group-label">Connection</div>
               <div class="kv">
                 <span class="k">Status</span><span class="v" id="sysState">Connecting</span>
@@ -970,6 +990,25 @@ input[type="range"]::-moz-range-thumb {
   let infoTimer = null;
   let pingSentAt = 0;
   const heldStops = new Set();   // stop-commands owed for currently-held buttons
+
+  /* ---------------- Persisted settings ----------------
+     Stored as one JSON object so new options can be added without migration:
+     unknown/new keys just fall back to DEFAULT_SETTINGS. */
+  const SETTINGS_KEY = "picar-settings";
+  const DEFAULT_SETTINGS = {
+    version: 1,
+    invertThrottle: false,   // swap forward <-> reverse
+    invertSteering: false,   // swap left <-> right
+  };
+  function loadSettings() {
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") || {}; } catch (e) {}
+    return Object.assign({}, DEFAULT_SETTINGS, stored);   // defaults win for missing keys
+  }
+  function saveSettings() {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+  }
+  let settings = loadSettings();
 
   /* ---------------- Logging ---------------- */
   const logEl = $("#log");
@@ -1103,10 +1142,17 @@ input[type="range"]::-moz-range-thumb {
   }
 
   /* ---------------- Hold-to-drive controls ---------------- */
+  // Apply user inversion so the pressed button matches the robot's real motion.
+  function effectiveCmd(cmd) {
+    if (settings.invertThrottle) { if (cmd === "forward") return "backward"; if (cmd === "backward") return "forward"; }
+    if (settings.invertSteering) { if (cmd === "left") return "right"; if (cmd === "right") return "left"; }
+    return cmd;
+  }
   function pressStart(btn) {
     if (btn.getAttribute("aria-disabled") === "true") return;
+    if (btn.classList.contains("active")) return;         // already held (2nd pointer/key)
     const cmd = btn.dataset.cmd, stop = btn.dataset.stop;
-    if (!send(cmd)) { toast("Not connected"); return; }
+    if (!send(effectiveCmd(cmd))) { toast("Not connected"); return; }
     btn.classList.add("active");
     if (stop) heldStops.add(stop);
     if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
@@ -1123,30 +1169,43 @@ input[type="range"]::-moz-range-thumb {
     heldStops.clear();
   }
 
+  // Each active touch/mouse pointer maps to exactly one button, so multiple
+  // buttons can be held at once and each releases independently (fixes iOS
+  // multi-touch and stuck buttons — no global "release everything on pointerup").
+  const pointerBtn = new Map();   // pointerId -> button
   $$(".hold").forEach(btn => {
     btn.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
       e.preventDefault();
       try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+      pointerBtn.set(e.pointerId, btn);
       pressStart(btn);
     });
-    const end = (e) => { pressEnd(btn); };
-    btn.addEventListener("pointerup", end);
-    btn.addEventListener("pointercancel", end);
-    btn.addEventListener("lostpointercapture", end);
     // Focused-button accessibility: Enter acts as a momentary hold.
     btn.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.repeat) { e.preventDefault(); pressStart(btn); } });
     btn.addEventListener("keyup",   (e) => { if (e.key === "Enter") { e.preventDefault(); pressEnd(btn); } });
     btn.addEventListener("contextmenu", (e) => e.preventDefault());
   });
+  function releasePointer(e) {
+    const btn = pointerBtn.get(e.pointerId);
+    if (!btn) return;
+    pointerBtn.delete(e.pointerId);
+    // Only release if no OTHER active pointer still holds this same button.
+    let stillHeld = false;
+    pointerBtn.forEach((b) => { if (b === btn) stillHeld = true; });
+    if (!stillHeld) pressEnd(btn);
+  }
+  window.addEventListener("pointerup", releasePointer);
+  window.addEventListener("pointercancel", releasePointer);
 
-  // Global backstops: never leave the robot driving if focus/visibility/pointer is lost.
-  window.addEventListener("pointerup", () => releaseAllHeld(true));
-  window.addEventListener("blur", () => releaseAllHeld(true));
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { releaseAllHeld(true); send("E_STOP"); } });
+  // Global backstops: never leave the robot driving if focus/visibility is lost.
+  window.addEventListener("blur", () => { pointerBtn.clear(); releaseAllHeld(true); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) { pointerBtn.clear(); releaseAllHeld(true); send("E_STOP"); } });
 
   /* ---------------- Emergency STOP ---------------- */
   const stopBtn = $("#stopBtn");
   function emergencyStop() {
+    pointerBtn.clear();
     releaseAllHeld(false);
     // Send an explicit stop even if not "authed" yet — best effort.
     const ok = send("E_STOP");
@@ -1213,11 +1272,19 @@ input[type="range"]::-moz-range-thumb {
   function setSwitch(sw, on, silent) {
     sw.setAttribute("aria-checked", on ? "true" : "false");
     if (silent) return;
+    // Local preference switch (no robot command).
+    if (sw.dataset.setting) {
+      settings[sw.dataset.setting] = on;
+      saveSettings();
+      return;
+    }
     const cmd = on ? sw.dataset.on : sw.dataset.off;
     if (!send(cmd)) { sw.setAttribute("aria-checked", on ? "false" : "true"); toast("Not connected"); return; }
     if (on && sw.dataset.motion === "1") toast("Autonomous mode on — keep the area clear");
   }
   $$(".switch").forEach(sw => {
+    // Reflect any persisted setting on load.
+    if (sw.dataset.setting && settings[sw.dataset.setting]) sw.setAttribute("aria-checked", "true");
     const toggle = () => setSwitch(sw, sw.getAttribute("aria-checked") !== "true", false);
     sw.addEventListener("click", toggle);
     sw.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
@@ -1252,6 +1319,7 @@ input[type="range"]::-moz-range-thumb {
     });
   });
   function selectTab(tab) {
+    pointerBtn.clear();
     releaseAllHeld(true);   // switching away from Drive must not leave motors running
     tabs.forEach(t => {
       const on = t === tab;
