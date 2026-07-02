@@ -24,12 +24,13 @@ adafruit-circuitpython-servokit       # optional higher-level servo helper
 adafruit-blinka                       # board/busio backend for CircuitPython libs
 
 # --- GPIO: motors, ultrasonic, line sensors, switches ---
-# gpiozero replaces RPi.GPIO, which is broken on kernel 6.x / Pi 5.
+# gpiozero + lgpio is the preferred modern GPIO path on Trixie (Pi 3/4/5).
+# Classic RPi.GPIO is deprecated and unsupported on Pi 5, so it is not used.
 gpiozero
 lgpio                                 # default gpiozero pin factory on Trixie
 
 # --- WS2812 / NeoPixel ---
-# Works on Pi 4 and earlier (needs root). Does NOT work on Pi 5 — see MIGRATION_NOTES.
+# Works on Pi 3/4 (needs root). Not supported on Pi 5 (RP1) — see MIGRATION_NOTES.
 rpi_ws281x
 
 # --- Web / backend (used later; harmless to install now) ---

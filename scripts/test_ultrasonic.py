@@ -7,7 +7,7 @@ trigger/echo pins (from server/ultra.py: Trig=11, Echo=8, BCM).
     python scripts/test_ultrasonic.py
     python scripts/test_ultrasonic.py --samples 10
 
-Read-only sensor test — no motion. gpiozero replaces RPi.GPIO (broken on Trixie).
+Read-only sensor test — no motion. Uses gpiozero (preferred on Trixie for Pi 3/4/5).
 
 WIRING NOTE: HC-SR04 ECHO is 5V; the Robot HAT is expected to level-shift/divide
 it to 3.3V. If you see no readings, verify ECHO reaches the Pi at 3.3V logic.

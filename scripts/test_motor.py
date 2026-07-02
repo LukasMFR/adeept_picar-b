@@ -3,7 +3,7 @@
 
 Spins each motor forward then backward at a very low speed for a very short
 time, respecting per-motor inversion from config/robot.yaml. Uses gpiozero
-(lgpio backend) instead of RPi.GPIO, which is broken on Trixie / Pi 5.
+(lgpio backend), the preferred modern GPIO path on Trixie for Pi 3/4/5.
 
     python scripts/test_motor.py            # both motors
     python scripts/test_motor.py --side left

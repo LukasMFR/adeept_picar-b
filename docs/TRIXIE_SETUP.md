@@ -78,12 +78,23 @@ The safe read-only tests first (`test_i2c`, `test_pca9685`, camera, sensors),
 then the movement tests (`test_servos`, `test_motor`) only when the robot is
 safely supported.
 
+## Supported hardware
+
+This foundation targets **Raspberry Pi 3 and Raspberry Pi 4** by default, running
+Raspberry Pi OS Lite 64-bit (Trixie). The Pi 5 uses a different GPIO controller
+(RP1) and has its own limitations, documented separately in
+[MIGRATION_NOTES.md](MIGRATION_NOTES.md#raspberry-pi-5-specific-notes). Those Pi 5
+caveats do **not** apply to Pi 3/4.
+
 ## Notes / gotchas on Trixie
 
-- **`RPi.GPIO` is not used.** It is broken on current kernels / Pi 5. The test
-  scripts use **`gpiozero`** with the `lgpio` backend.
-- **WS2812 needs root** and does **not** work on the Pi 5. Run its test with
-  `sudo .venv/bin/python scripts/test_ws2812.py`.
+- **GPIO backend:** the test scripts use **`gpiozero`** with the `lgpio` backend,
+  which is the preferred modern path on Trixie for Pi 3/4/5. Classic `RPi.GPIO`
+  is deprecated on recent images (and does not work on the Pi 5), so it is not
+  used here; on Pi 3/4 it may still function but `gpiozero`/`lgpio` is preferred.
+- **WS2812 needs root.** Run its test with
+  `sudo .venv/bin/python scripts/test_ws2812.py`. `rpi_ws281x` works on Pi 3/4;
+  it does **not** work on the Pi 5 (see MIGRATION_NOTES for the Pi 5 alternative).
 - **PCA9685** uses the maintained `adafruit-circuitpython-pca9685` library, but
   the servo scripts drive it with the same raw 12-bit tick values as the old
   code, so your existing calibration in `server/config.txt` stays valid.

@@ -4,6 +4,15 @@ Why the modern setup differs from the official Adeept code, what stayed the same
 and the roadmap. The robot is confirmed working on the old Buster image; the goal
 is a clean, testable Trixie foundation **without** changing hardware behaviour.
 
+## Target hardware
+
+**Default target: Raspberry Pi 3 and Raspberry Pi 4** on Raspberry Pi OS Lite
+64-bit (Trixie). The Step 1 foundation (config, tests, docs) is safe to run on
+Pi 3/4. The Raspberry Pi 5 introduces a different GPIO controller (RP1) with its
+own constraints; those are documented separately in
+[Raspberry Pi 5-specific notes](#raspberry-pi-5-specific-notes) and do **not**
+apply to Pi 3/4.
+
 ## Hardware inventory (extracted from the working Buster sources)
 
 All pins are **BCM**, copied verbatim into [`config/robot.yaml`](../config/robot.yaml).
@@ -34,10 +43,10 @@ All pins are **BCM**, copied verbatim into [`config/robot.yaml`](../config/robot
 
 | Legacy (Buster) | Problem on Trixie | Modern replacement |
 |-----------------|-------------------|--------------------|
-| `RPi.GPIO` | Broken on kernel 6.x / Pi 5 (sysfs GPIO removed) | **`gpiozero`** + `lgpio` backend |
+| `RPi.GPIO` | Deprecated on recent images; unsupported on Pi 5 (RP1 GPIO). On Pi 3/4 it may still work but is no longer the recommended path | **`gpiozero`** + `lgpio` backend (preferred on Pi 3/4/5) |
 | `Adafruit_PCA9685` | Abandoned, not on PyPI for 3.11+ | **`adafruit-circuitpython-pca9685`** (driven with the same raw 12-bit ticks) |
 | `picamera` (legacy) | Removed; libcamera is the stack now | **`picamera2`** (apt `python3-picamera2`) |
-| `rpi_ws281x` | Still works on Pi ≤4 (needs root); **broken on Pi 5** | Kept for Pi 4; Pi 5 needs an SPI/PIO-based approach (future) |
+| `rpi_ws281x` | Works on Pi 3/4 (needs root); not supported on Pi 5 (RP1) | Kept for Pi 3/4; Pi 5 needs an SPI/PIO-based approach (future) |
 | `sudo pip3 install ...` | Externally-managed env (PEP 668); pollutes system | **venv** (`--system-site-packages`) + `requirements-trixie.txt` |
 | `python3-opencv` via mixed pip/apt | Version/ABI drift | apt `python3-opencv`, visible through the venv |
 | `create_ap`, `/etc/rc.local`, `startup.sh`, audio blacklist + reboot | Deprecated / out of scope for a hardware foundation | **dropped** from Step 1 |
@@ -57,6 +66,21 @@ calibration value in `server/config.txt` and `servo.py` carries over unchanged.
   wired into the config/tests — they belong to a legacy LED path superseded by
   the WS2812 strip. Left untouched pending confirmation of the actual board.
 
+## Raspberry Pi 5-specific notes
+
+These apply **only** to the Pi 5 and are **not** limitations on Pi 3/4. The Pi 5
+moves GPIO onto a separate RP1 I/O controller, which changes what works:
+
+- **`RPi.GPIO` (classic):** does not work on the Pi 5. This is a Pi 5 issue, not
+  a general Trixie issue — on Pi 3/4 the classic library still functions (though
+  `gpiozero`/`lgpio`, which this project uses, is preferred everywhere).
+- **`gpiozero` + `lgpio`:** works on Pi 5 as well, so the motor/servo/sensor
+  scripts here are expected to run on Pi 5 unchanged. (Pin factories/backends may
+  differ under the hood, but the scripts don't depend on that.)
+- **`rpi_ws281x` (WS2812):** not supported on the Pi 5 — the PWM/DMA path it
+  relies on is not available through RP1. A Pi 5 WS2812 story (e.g. SPI- or
+  PIO-based drive) is deferred to a later step. On Pi 3/4 it works (as root).
+
 ## Roadmap
 
 - **Step 1 (this change):** docs, `config/robot.yaml`, `requirements-trixie.txt`,
@@ -69,6 +93,7 @@ calibration value in `server/config.txt` and `servo.py` carries over unchanged.
 
 ## Open items to confirm on real hardware
 - Motor `invert` flags per side (use `scripts/test_motor.py` with wheels lifted).
-- Actual WS2812 LED count and whether the target is a Pi 4 or Pi 5.
+- Actual WS2812 LED count: `robotLight.py` uses **16**, `LED.py` uses **12**
+  (config defaults to 16). Confirm against your physical strip.
 - Whether the direct-GPIO RGB LEDs exist on this board or only the WS2812 strip.
 - Ultrasonic ECHO level-shifting (3.3 V at the Pi) on the current HAT revision.
