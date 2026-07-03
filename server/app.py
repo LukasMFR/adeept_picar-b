@@ -42,9 +42,10 @@ DEFAULT_SETTINGS = {
     'version': 1,
     'invertThrottle': False,
     'invertSteering': False,
-    'invertLEDs': False,
+    'invertLEDs': False,           # swap forward/reverse LED colour
+    'invertTurnSignals': False,    # swap left/right turn-signal LEDs
 }
-_ALLOWED_BOOL_KEYS = ('invertThrottle', 'invertSteering', 'invertLEDs')
+_ALLOWED_BOOL_KEYS = ('invertThrottle', 'invertSteering', 'invertLEDs', 'invertTurnSignals')
 _settings_lock = threading.Lock()
 _settings_cache = None                         # in-process cache; webServer.py reads this
 

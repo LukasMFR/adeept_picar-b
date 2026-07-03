@@ -571,6 +571,29 @@ input[type="range"]::-moz-range-thumb {
 .row .ricon { width: 34px; height: 34px; flex: none; border-radius: 10px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--hairline-soft); color: var(--text-dim); }
 .row .ricon svg { width: 18px; height: 18px; }
 
+/* A setting and its nested "also invert this" sub-option */
+.setting-group { display: flex; flex-direction: column; gap: 6px; }
+.row.subrow {
+  position: relative;
+  margin-left: 30px;
+  padding: 10px 14px;
+  background: transparent;
+  gap: 10px;
+}
+.row.subrow::before {           /* little elbow connecting it to the parent above */
+  content: ""; position: absolute; left: -16px; top: -8px;
+  width: 13px; height: calc(50% + 8px);
+  border-left: 2px solid var(--hairline);
+  border-bottom: 2px solid var(--hairline);
+  border-bottom-left-radius: 9px;
+  pointer-events: none;
+}
+.row.subrow .ricon { width: 28px; height: 28px; border-radius: 8px; }
+.row.subrow .ricon svg { width: 15px; height: 15px; }
+.row.subrow .rtitle { font-size: 13px; font-weight: 560; }
+.row.subrow .rdesc { font-size: 11px; }
+.row.subrow .switch { transform: scale(0.86); transform-origin: right center; }
+
 /* iOS-style switch */
 .switch {
   position: relative; width: 52px; height: 31px; flex: none; cursor: pointer;
@@ -976,20 +999,29 @@ input[type="range"]::-moz-range-thumb {
               </div>
 
               <div class="group-label">Robot behaviour</div>
-              <div class="row">
-                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></div>
-                <div class="rtext"><div class="rtitle">Invert forward / reverse</div><div class="rdesc">Swap the throttle direction if the robot drives the opposite way to the buttons.</div></div>
-                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertThrottle" aria-label="Invert forward and reverse"></div>
+              <div class="setting-group">
+                <div class="row">
+                  <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></div>
+                  <div class="rtext"><div class="rtitle">Invert forward / reverse</div><div class="rdesc">Swap the throttle direction if the robot drives the opposite way to the buttons.</div></div>
+                  <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertThrottle" aria-label="Invert forward and reverse"></div>
+                </div>
+                <div class="row subrow">
+                  <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4.9 1 .9 1.6v.5h5.2v-.5c0-.6.3-1.2.9-1.6A6 6 0 0 0 12 3z"/><path d="M9.4 18h5.2"/></svg></div>
+                  <div class="rtext"><div class="rtitle">Also invert the direction lights</div><div class="rdesc">Swap the white (forward) and red (reverse) LEDs to match.</div></div>
+                  <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertLEDs" aria-label="Also invert the direction lights"></div>
+                </div>
               </div>
-              <div class="row">
-                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4.9 1 .9 1.6v.5h5.2v-.5c0-.6.3-1.2.9-1.6A6 6 0 0 0 12 3z"/><path d="M9.4 18h5.2"/><path d="M4 8h4M16 8h4"/></svg></div>
-                <div class="rtext"><div class="rtitle">Invert direction lights</div><div class="rdesc">Swap the white (forward) and red (reverse) LEDs. Turn on together with "Invert forward / reverse" if the lights end up backwards.</div></div>
-                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertLEDs" aria-label="Invert direction lights"></div>
-              </div>
-              <div class="row">
-                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4L4 8l4 4M4 8h13M16 20l4-4-4-4M20 16H7"/></svg></div>
-                <div class="rtext"><div class="rtitle">Invert steering</div><div class="rdesc">Swap left and right if your steering is reversed.</div></div>
-                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertSteering" aria-label="Invert steering"></div>
+              <div class="setting-group">
+                <div class="row">
+                  <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4L4 8l4 4M4 8h13M16 20l4-4-4-4M20 16H7"/></svg></div>
+                  <div class="rtext"><div class="rtitle">Invert steering</div><div class="rdesc">Swap left and right if your steering is reversed.</div></div>
+                  <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertSteering" aria-label="Invert steering"></div>
+                </div>
+                <div class="row subrow">
+                  <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l-2 3h4l-2 3M6 3v4M6 17v4M18 3v4M18 17v4"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="12" r="2"/></svg></div>
+                  <div class="rtext"><div class="rtitle">Also invert the turn signals</div><div class="rdesc">Swap the left and right indicator LEDs to match.</div></div>
+                  <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertTurnSignals" aria-label="Also invert the turn signals"></div>
+                </div>
               </div>
 
               <div class="group-label">Connection</div>
@@ -1061,9 +1093,10 @@ input[type="range"]::-moz-range-thumb {
   const SETTINGS_URL = "/api/settings";
   const DEFAULT_SETTINGS = {
     version: 1,
-    invertThrottle: false,   // swap forward <-> reverse
-    invertSteering: false,   // swap left <-> right
-    invertLEDs: false,       // swap the white/red direction lights (server-side)
+    invertThrottle: false,      // swap forward <-> reverse
+    invertSteering: false,      // swap left <-> right
+    invertLEDs: false,          // swap the white/red direction lights (server-side)
+    invertTurnSignals: false,   // swap the left/right turn-signal lights (server-side)
   };
   // Accept only known keys, always as booleans, whatever the source.
   function sanitizeSettings(raw) {
@@ -1072,6 +1105,7 @@ input[type="range"]::-moz-range-thumb {
       out.invertThrottle = !!raw.invertThrottle;
       out.invertSteering = !!raw.invertSteering;
       out.invertLEDs = !!raw.invertLEDs;
+      out.invertTurnSignals = !!raw.invertTurnSignals;
     }
     return out;
   }
@@ -1095,7 +1129,7 @@ input[type="range"]::-moz-range-thumb {
       const r = await fetch(SETTINGS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invertThrottle: settings.invertThrottle, invertSteering: settings.invertSteering, invertLEDs: settings.invertLEDs }),
+        body: JSON.stringify({ invertThrottle: settings.invertThrottle, invertSteering: settings.invertSteering, invertLEDs: settings.invertLEDs, invertTurnSignals: settings.invertTurnSignals }),
       });
       if (!r.ok) return null;
       return sanitizeSettings(await r.json());

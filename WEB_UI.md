@@ -97,14 +97,16 @@ The System tab has a Settings section (under "Robot behaviour"):
 
 - **Invert forward / reverse** — swaps the throttle direction if the robot drives
   the opposite way to the buttons (for example if the motors are wired reversed).
-- **Invert direction lights** — swaps the white (forward) and red (reverse) LEDs.
-  Because "Invert forward / reverse" remaps the motor command, the direction lights
-  would otherwise show the wrong colour; turn this on with it so the lights match
-  the button you pressed. Applied on the robot (`webServer.py` reads the setting).
+  - **Also invert the direction lights** (sub-option) — swaps the white (forward)
+    and red (reverse) LEDs so they match the button you pressed.
 - **Invert steering** — swaps left and right.
+  - **Also invert the turn signals** (sub-option) — swaps the left/right indicator
+    LEDs to match.
 
 Throttle/steer inversion is applied to the on-screen buttons, the keyboard, and the
-joystick. The light inversion is applied on the robot itself.
+joystick. The two light inversions are applied on the robot itself (`webServer.py`
+reads the shared config); they are independent toggles, so you can enable a light
+swap on its own if only the LEDs are wired the wrong way round.
 
 These are **shared, server-side settings** so every phone and computer sees the
 same configuration. The robot keeps the authoritative copy in
@@ -198,9 +200,12 @@ Do these with the **wheels lifted off the ground** for anything involving motors
     and confirm it stops. Toggle it back off and confirm the buttons return. Confirm the
     setting sticks after a reload on that device.
 14. **Direction lights (WHEELS LIFTED)** — with "Invert forward / reverse" on, hold
-    Forward and note the LED colour. Turn on "Invert direction lights"; hold Forward
-    again and confirm the colour is now the white/headlight colour (and Reverse shows
-    red). No robot restart is needed; the change applies on the next command.
+    Forward and note the LED colour. Turn on "Also invert the direction lights"; hold
+    Forward again and confirm the colour is now the white/headlight colour (and Reverse
+    shows red). No robot restart is needed; the change applies on the next command.
+15. **Turn signals (WHEELS LIFTED)** — with "Invert steering" on, hold Left and note
+    which indicator lights. Turn on "Also invert the turn signals"; hold Left again and
+    confirm the opposite indicator now lights (matching the button).
 
 ## Rollback
 

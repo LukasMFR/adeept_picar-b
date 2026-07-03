@@ -268,6 +268,32 @@ def drive_leds(raw_dir):
 		pass
 
 
+def turn_signals_inverted():
+	"""Whether the 'Invert turn signals' UI setting is on."""
+	try:
+		return bool(app.get_current_settings().get('invertTurnSignals'))
+	except Exception:
+		return False
+
+
+def turn_leds(raw_turn):
+	"""Light the turn-signal LEDs for a raw steer command (left/right).
+
+	Swapped when 'Invert turn signals' is on so the indicator matches the button
+	you pressed even while 'Invert steering' is remapping the steering servo.
+	"""
+	left = (raw_turn == 'left')
+	if turn_signals_inverted():
+		left = not left
+	try:
+		if left:
+			RL.turnLeft()
+		else:
+			RL.turnRight()
+	except Exception:
+		pass
+
+
 def robotCtrl(command_input, response):
 	global direction_command, turn_command
 	if 'E_STOP' == command_input:
@@ -290,10 +316,10 @@ def robotCtrl(command_input, response):
 		move.motorStop()
 		if turn_command == 'left':
 			RL.both_off()
-			RL.turnLeft()
+			turn_leds('left')
 		elif turn_command == 'right':
 			RL.both_off()
-			RL.turnRight()
+			turn_leds('right')
 		elif turn_command == 'no':
 			RL.both_off()
 
@@ -302,13 +328,13 @@ def robotCtrl(command_input, response):
 		turn_command = 'left'
 		scGear.moveAngle(2, 30)
 		RL.both_off()
-		RL.turnLeft()
+		turn_leds('left')
 
 	elif 'right' == command_input:
 		turn_command = 'right'
 		scGear.moveAngle(2,-30)
 		RL.both_off()
-		RL.turnRight()
+		turn_leds('right')
 
 	elif 'TS' in command_input:
 		turn_command = 'no'
