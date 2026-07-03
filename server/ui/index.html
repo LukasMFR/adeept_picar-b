@@ -492,6 +492,42 @@ input[type="range"]::-moz-range-thumb {
 .hold.active svg, .hold.active small { color: var(--accent-ink); }
 .hold[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
 
+/* --- Joystick (shown only when the Joystick preference is on) --- */
+.joywrap { display: none; flex: 1; min-height: 0; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding-top: 4px; }
+:root[data-joystick="on"] .pads { display: none; }
+:root[data-joystick="on"] .joywrap { display: flex; }
+.joystick {
+  position: relative;
+  width: min(62vw, 240px); aspect-ratio: 1 / 1; border-radius: 50%;
+  display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 40%, var(--surface), var(--panel-2));
+  border: 1px solid var(--hairline);
+  box-shadow: inset 0 2px 12px rgba(0,0,0,0.20), var(--shadow-lo);
+  touch-action: none; -webkit-user-select: none; user-select: none; cursor: grab;
+}
+.joystick:active { cursor: grabbing; }
+.joy-axis { position: absolute; background: var(--hairline-soft); pointer-events: none; }
+.joy-axis-v { width: 2px; height: 60%; border-radius: 2px; }
+.joy-axis-h { height: 2px; width: 60%; border-radius: 2px; }
+.joy-knob {
+  width: 38%; aspect-ratio: 1 / 1; border-radius: 50%;
+  display: grid; place-items: center; color: var(--text-faint);
+  background: linear-gradient(150deg, var(--surface-solid), var(--panel-2));
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-hi), inset 0 1px 0 rgba(255,255,255,0.20);
+  transition: transform 260ms var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  will-change: transform;
+}
+.joy-knob svg { width: 46%; height: 46%; }
+.joystick.engaged .joy-knob {
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  background: linear-gradient(150deg, var(--accent-strong), var(--accent));
+  color: var(--accent-ink); border-color: transparent;
+  box-shadow: var(--shadow-accent), inset 0 1px 0 rgba(255,255,255,0.32);
+}
+.joy-hint { font-size: 12px; color: var(--text-faint); font-weight: 560; letter-spacing: 0.01em; transition: opacity var(--dur) var(--ease); }
+.joystick.engaged + .joy-hint { opacity: 0; }
+
 /* --- Camera panel --- */
 .cam-panel { height: 100%; display: grid; grid-template-rows: 1fr auto; gap: 14px; min-height: 0; }
 /* Compact, centred square D-pad so it never overlaps the scan row below it. */
@@ -826,6 +862,18 @@ input[type="range"]::-moz-range-thumb {
                   </div>
                 </div>
               </div>
+
+              <!-- Joystick control (shown when the Joystick preference is on) -->
+              <div class="joywrap">
+                <div class="joystick" id="joystick" role="application" aria-label="Drive joystick, drag to steer and throttle">
+                  <span class="joy-axis joy-axis-v"></span>
+                  <span class="joy-axis joy-axis-h"></span>
+                  <div class="joy-knob" id="joyKnob" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M4 12h16M12 4l-2.4 2.6M12 4l2.4 2.6M12 20l-2.4-2.6M12 20l2.4-2.6M4 12l2.6-2.4M4 12l2.6 2.4M20 12l-2.6-2.4M20 12l-2.6 2.4"/></svg>
+                  </div>
+                </div>
+                <div class="joy-hint">Drag to drive</div>
+              </div>
             </div>
           </div>
         </section>
@@ -920,7 +968,14 @@ input[type="range"]::-moz-range-thumb {
                 <div class="metric" id="mRam" data-sev="idle"><span class="mlab">RAM</span><span class="mval tabular"><span id="mRamV">--</span><span>%</span></span><span class="meter"><i id="mRamBar"></i></span></div>
               </div>
 
-              <div class="group-label">Settings</div>
+              <div class="group-label">Controls</div>
+              <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="4"/><path d="M12 13v5M8.5 21h7l-1.2-3H9.7z"/></svg></div>
+                <div class="rtext"><div class="rtitle">Joystick control</div><div class="rdesc">Use a drag joystick instead of the direction buttons. Great on a phone; the keyboard still works.</div></div>
+                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-pref="joystick" aria-label="Joystick control"></div>
+              </div>
+
+              <div class="group-label">Robot behaviour</div>
               <div class="row">
                 <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></div>
                 <div class="rtext"><div class="rtitle">Invert forward / reverse</div><div class="rdesc">Swap the throttle direction if the robot drives the opposite way to the buttons.</div></div>
@@ -1045,6 +1100,27 @@ input[type="range"]::-moz-range-thumb {
     });
   }
   let settings = loadSettings();               // instant from cache; refined from server on boot
+
+  /* ---------------- Local UI preferences ----------------
+     Device-specific display choices (not robot behaviour), so these stay local
+     rather than syncing to the robot: a joystick suits a phone, not a desktop. */
+  const PREFS_KEY = "picar-prefs";
+  const DEFAULT_PREFS = { joystick: false };
+  function loadPrefs() {
+    let raw = {};
+    try { raw = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}"); } catch (e) {}
+    return { joystick: !!(raw && raw.joystick) };
+  }
+  function savePrefs() {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {}
+  }
+  function applyPrefsToUI() {
+    document.documentElement.dataset.joystick = prefs.joystick ? "on" : "off";
+    $$('.switch[data-pref]').forEach(sw => {
+      sw.setAttribute("aria-checked", prefs[sw.dataset.pref] ? "true" : "false");
+    });
+  }
+  let prefs = loadPrefs();
 
   /* ---------------- Logging ---------------- */
   const logEl = $("#log");
@@ -1234,15 +1310,78 @@ input[type="range"]::-moz-range-thumb {
   window.addEventListener("pointerup", releasePointer);
   window.addEventListener("pointercancel", releasePointer);
 
+  /* ---------------- Joystick control ----------------
+     Drag maps to the robot's discrete commands: vertical -> forward/backward,
+     horizontal -> left/right, each sent only on change and passed through
+     effectiveCmd() so the invert settings apply. Release springs back and stops. */
+  const joystick = $("#joystick"), joyKnob = $("#joyKnob");
+  const JOY_DEAD = 0.30;                     // fraction of travel before a direction engages
+  let joyPointer = null, joyThrottle = null, joySteer = null;
+  function joySetDir(kind, dir) {
+    if (kind === "throttle") {
+      if (dir === joyThrottle) return;
+      joyThrottle = dir;
+      send(dir ? effectiveCmd(dir) : "DS");
+    } else {
+      if (dir === joySteer) return;
+      joySteer = dir;
+      send(dir ? effectiveCmd(dir) : "TS");
+    }
+  }
+  function joyReset() {
+    if (joyThrottle) send("DS");
+    if (joySteer) send("TS");
+    joyThrottle = joySteer = null;
+    if (joyPointer !== null) { try { joystick.releasePointerCapture(joyPointer); } catch (e) {} joyPointer = null; }
+    joystick.classList.remove("engaged");
+    joyKnob.style.transform = "translate(0px,0px)";
+  }
+  function joyMove(clientX, clientY) {
+    const r = joystick.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const max = (r.width / 2) * 0.62;        // knob travel limit
+    let dx = clientX - cx, dy = clientY - cy;
+    const dist = Math.hypot(dx, dy) || 1;
+    if (dist > max) { dx = dx / dist * max; dy = dy / dist * max; }
+    joyKnob.style.transform = "translate(" + dx.toFixed(1) + "px," + dy.toFixed(1) + "px)";
+    const nx = dx / max, ny = dy / max;      // -1..1
+    joySetDir("throttle", ny < -JOY_DEAD ? "forward" : ny > JOY_DEAD ? "backward" : null);
+    joySetDir("steer",    nx < -JOY_DEAD ? "left"    : nx > JOY_DEAD ? "right"    : null);
+  }
+  joystick.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.preventDefault();
+    joyPointer = e.pointerId;
+    try { joystick.setPointerCapture(e.pointerId); } catch (err) {}
+    joystick.classList.add("engaged");
+    joyKnob.style.transition = "none";       // follow the finger instantly
+    joyMove(e.clientX, e.clientY);
+  });
+  joystick.addEventListener("pointermove", (e) => {
+    if (joyPointer === null || e.pointerId !== joyPointer) return;
+    e.preventDefault();
+    joyMove(e.clientX, e.clientY);
+  });
+  function joyEnd(e) {
+    if (joyPointer === null || (e && e.pointerId !== joyPointer)) return;
+    joyKnob.style.transition = "";           // restore the spring-back animation
+    joyReset();
+  }
+  joystick.addEventListener("pointerup", joyEnd);
+  joystick.addEventListener("pointercancel", joyEnd);
+  joystick.addEventListener("lostpointercapture", joyEnd);
+  joystick.addEventListener("contextmenu", (e) => e.preventDefault());
+
   // Global backstops: never leave the robot driving if focus/visibility is lost.
-  window.addEventListener("blur", () => { pointerBtn.clear(); releaseAllHeld(true); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { pointerBtn.clear(); releaseAllHeld(true); send("E_STOP"); } });
+  window.addEventListener("blur", () => { pointerBtn.clear(); releaseAllHeld(true); joyReset(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) { pointerBtn.clear(); releaseAllHeld(true); joyReset(); send("E_STOP"); } });
 
   /* ---------------- Emergency STOP ---------------- */
   const stopBtn = $("#stopBtn");
   function emergencyStop() {
     pointerBtn.clear();
     releaseAllHeld(false);
+    joyReset();
     // Send an explicit stop even if not "authed" yet — best effort.
     const ok = send("E_STOP");
     send("DS"); send("TS");
@@ -1308,7 +1447,7 @@ input[type="range"]::-moz-range-thumb {
   function setSwitch(sw, on, silent) {
     sw.setAttribute("aria-checked", on ? "true" : "false");
     if (silent) return;
-    // Preference switch: update the shared server config (cached locally too).
+    // Robot setting: update the shared server config (cached locally too).
     if (sw.dataset.setting) {
       settings[sw.dataset.setting] = on;
       saveSettings();                                  // cache immediately
@@ -1318,13 +1457,22 @@ input[type="range"]::-moz-range-thumb {
       });
       return;
     }
+    // Local display preference (this device only).
+    if (sw.dataset.pref) {
+      prefs[sw.dataset.pref] = on;
+      savePrefs();
+      applyPrefsToUI();
+      if (sw.dataset.pref === "joystick") { joyReset(); releaseAllHeld(true); }
+      return;
+    }
     const cmd = on ? sw.dataset.on : sw.dataset.off;
     if (!send(cmd)) { sw.setAttribute("aria-checked", on ? "false" : "true"); toast("Not connected"); return; }
     if (on && sw.dataset.motion === "1") toast("Autonomous mode on — keep the area clear");
   }
   $$(".switch").forEach(sw => {
-    // Reflect any persisted setting on load.
+    // Reflect any persisted setting/pref on load.
     if (sw.dataset.setting && settings[sw.dataset.setting]) sw.setAttribute("aria-checked", "true");
+    if (sw.dataset.pref && prefs[sw.dataset.pref]) sw.setAttribute("aria-checked", "true");
     const toggle = () => setSwitch(sw, sw.getAttribute("aria-checked") !== "true", false);
     sw.addEventListener("click", toggle);
     sw.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
@@ -1361,6 +1509,7 @@ input[type="range"]::-moz-range-thumb {
   function selectTab(tab) {
     pointerBtn.clear();
     releaseAllHeld(true);   // switching away from Drive must not leave motors running
+    joyReset();
     tabs.forEach(t => {
       const on = t === tab;
       t.setAttribute("aria-selected", on ? "true" : "false");
@@ -1418,6 +1567,7 @@ input[type="range"]::-moz-range-thumb {
   $("#sysVideo").textContent = HOST + ":5000/video_feed";
 
   /* ---------------- Boot ---------------- */
+  applyPrefsToUI();                    // joystick vs buttons (local pref)
   applySettingsToUI();                 // reflect cached settings immediately
   fetchServerSettings().then(server => {
     if (server) { settings = server; saveSettings(); applySettingsToUI(); }

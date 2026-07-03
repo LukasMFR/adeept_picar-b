@@ -79,15 +79,27 @@ key sends the matching stop, exactly like lifting a finger. On a touch screen yo
 can hold two buttons at once the same way (for example steer + throttle) — each
 finger is tracked independently.
 
+### Joystick control
+
+The System tab has a **Joystick control** toggle (under "Controls"). When on, the
+Drive tab shows a drag joystick instead of the direction buttons: vertical drag is
+forward/reverse, horizontal is steering, both released the instant you let go. The
+keyboard still drives while the joystick is shown. This is a per-device display
+preference (stored in `localStorage["picar-prefs"]`), not a robot setting, since a
+joystick suits a phone but not a desktop.
+
+With buttons (the default), the Drive tab keeps STEER on the left and THROTTLE on
+the right, below the camera.
+
 ### Settings
 
-The System tab has a Settings section:
+The System tab has a Settings section (under "Robot behaviour"):
 
 - **Invert forward / reverse** — swaps the throttle direction if the robot drives
   the opposite way to the buttons (for example if the motors are wired reversed).
 - **Invert steering** — swaps left and right.
 
-Inversion is applied to both the on-screen buttons and the keyboard.
+Inversion is applied to the on-screen buttons, the keyboard, and the joystick.
 
 These are **shared, server-side settings** so every phone and computer sees the
 same configuration. The robot keeps the authoritative copy in
@@ -176,6 +188,10 @@ Do these with the **wheels lifted off the ground** for anything involving motors
     on. Check `curl http://<ip>:5000/api/settings` returns the same values. With the
     server reachable the setting survives a full reload on a device with cleared site
     data; if the robot is unreachable the UI still loads from its local cache.
+13. **Joystick (WHEELS LIFTED)** — System tab, turn on "Joystick control". On the Drive
+    tab, drag the joystick up/down/left/right and confirm the robot responds; release
+    and confirm it stops. Toggle it back off and confirm the buttons return. Confirm the
+    setting sticks after a reload on that device.
 
 ## Rollback
 
