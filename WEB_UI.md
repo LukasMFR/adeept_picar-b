@@ -81,15 +81,31 @@ finger is tracked independently.
 
 ### Settings
 
-The System tab has a Settings section, stored locally as a versioned JSON object
-(`localStorage["picar-settings"]`) so new options can be added later without
-breaking existing saves:
+The System tab has a Settings section:
 
 - **Invert forward / reverse** — swaps the throttle direction if the robot drives
   the opposite way to the buttons (for example if the motors are wired reversed).
 - **Invert steering** — swaps left and right.
 
 Inversion is applied to both the on-screen buttons and the keyboard.
+
+These are **shared, server-side settings** so every phone and computer sees the
+same configuration. The robot keeps the authoritative copy in
+`server/robot_settings.json` and exposes a small JSON API on the Flask server:
+
+| Method | Endpoint | Behaviour |
+| ------ | -------- | --------- |
+| `GET`  | `/api/settings` | Returns the current settings (defaults if none saved). |
+| `POST` | `/api/settings` | Accepts a JSON object; only the known boolean keys are read, everything else is ignored; writes atomically and returns the saved settings. |
+
+The API validates input safely: a non-object body or malformed JSON returns
+`400`, an oversized body returns `413`, unknown keys are dropped, and values are
+coerced to booleans, so a bad or hostile request cannot inject state.
+
+`localStorage["picar-settings"]` is kept only as a **cache/fallback**: the UI
+shows the cached values instantly on load, then refreshes them from the robot;
+if the robot's API is unreachable it keeps working from the cache. The settings
+file is per-robot and is not tracked in git.
 
 ## Safety model
 
@@ -118,8 +134,10 @@ No autonomous or movement test is ever triggered automatically. Autonomous modes
 | File | Change |
 | ---- | ------ |
 | `server/ui/index.html` | **New.** The entire modern console (HTML + CSS + JS, self-contained). |
-| `server/app.py` | Serve the new console at `/`; keep the original Vue app at `/legacy`. |
+| `server/app.py` | Serve the new console at `/`; keep the original Vue app at `/legacy`; add the `GET`/`POST` `/api/settings` config API. |
 | `server/webServer.py` | **Safety:** added `emergency_stop()` + `E_STOP` command, a receive-timeout watchdog in `recv_msg`, a `heartbeat` no-op, and stop-on-disconnect in `main_logic`. |
+| `server/robot_settings.json` | Runtime, per-robot config written by the settings API (git-ignored, created on first save). |
+| `.gitignore` | Ignore `server/robot_settings.json`. |
 | `WEB_UI.md` | **New.** This document. |
 
 The command protocol, hardware drivers, camera pipeline, and existing endpoints are
@@ -153,6 +171,11 @@ Do these with the **wheels lifted off the ground** for anything involving motors
     "Reconnecting" then "Connected".
 11. **Disconnect (WHEELS LIFTED)** — hold Forward, then close the browser tab. The
     motors stop immediately (server `finally`).
+12. **Shared settings** — on phone A, System tab, turn on "Invert forward / reverse".
+    Open the console on phone B (or another browser) and confirm the switch is already
+    on. Check `curl http://<ip>:5000/api/settings` returns the same values. With the
+    server reachable the setting survives a full reload on a device with cleared site
+    data; if the robot is unreachable the UI still loads from its local cache.
 
 ## Rollback
 

@@ -19,6 +19,9 @@ ENV/
 *.log
 *.tmp
 
+# Runtime robot config (per-device, written by the web UI settings API)
+server/robot_settings.json
+
 # OS files
 .DS_Store
 Thumbs.db

@@ -991,24 +991,60 @@ input[type="range"]::-moz-range-thumb {
   let pingSentAt = 0;
   const heldStops = new Set();   // stop-commands owed for currently-held buttons
 
-  /* ---------------- Persisted settings ----------------
-     Stored as one JSON object so new options can be added without migration:
-     unknown/new keys just fall back to DEFAULT_SETTINGS. */
+  /* ---------------- Settings ----------------
+     The robot holds the authoritative copy (server/robot_settings.json) so every
+     phone/computer agrees. localStorage is only a cache/fallback: it seeds the UI
+     instantly on load and keeps it working if the robot's HTTP API is unreachable. */
   const SETTINGS_KEY = "picar-settings";
+  // Relative: the settings API is served by the same Flask app as this page, so
+  // this works on any port / behind a proxy and needs no cross-origin request.
+  const SETTINGS_URL = "/api/settings";
   const DEFAULT_SETTINGS = {
     version: 1,
     invertThrottle: false,   // swap forward <-> reverse
     invertSteering: false,   // swap left <-> right
   };
+  // Accept only known keys, always as booleans, whatever the source.
+  function sanitizeSettings(raw) {
+    const out = Object.assign({}, DEFAULT_SETTINGS);
+    if (raw && typeof raw === "object") {
+      out.invertThrottle = !!raw.invertThrottle;
+      out.invertSteering = !!raw.invertSteering;
+    }
+    return out;
+  }
   function loadSettings() {
     let stored = {};
-    try { stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") || {}; } catch (e) {}
-    return Object.assign({}, DEFAULT_SETTINGS, stored);   // defaults win for missing keys
+    try { stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}"); } catch (e) {}
+    return sanitizeSettings(stored);
   }
-  function saveSettings() {
+  function saveSettings() {                    // write-through cache
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
   }
-  let settings = loadSettings();
+  async function fetchServerSettings() {
+    try {
+      const r = await fetch(SETTINGS_URL, { method: "GET", cache: "no-store" });
+      if (!r.ok) return null;
+      return sanitizeSettings(await r.json());
+    } catch (e) { return null; }
+  }
+  async function pushServerSettings() {
+    try {
+      const r = await fetch(SETTINGS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invertThrottle: settings.invertThrottle, invertSteering: settings.invertSteering }),
+      });
+      if (!r.ok) return null;
+      return sanitizeSettings(await r.json());
+    } catch (e) { return null; }
+  }
+  function applySettingsToUI() {
+    $$('.switch[data-setting]').forEach(sw => {
+      sw.setAttribute("aria-checked", settings[sw.dataset.setting] ? "true" : "false");
+    });
+  }
+  let settings = loadSettings();               // instant from cache; refined from server on boot
 
   /* ---------------- Logging ---------------- */
   const logEl = $("#log");
@@ -1272,10 +1308,14 @@ input[type="range"]::-moz-range-thumb {
   function setSwitch(sw, on, silent) {
     sw.setAttribute("aria-checked", on ? "true" : "false");
     if (silent) return;
-    // Local preference switch (no robot command).
+    // Preference switch: update the shared server config (cached locally too).
     if (sw.dataset.setting) {
       settings[sw.dataset.setting] = on;
-      saveSettings();
+      saveSettings();                                  // cache immediately
+      pushServerSettings().then(saved => {
+        if (saved) { settings = saved; saveSettings(); applySettingsToUI(); }
+        else toast("Saved on this device (robot settings unreachable)");
+      });
       return;
     }
     const cmd = on ? sw.dataset.on : sw.dataset.off;
@@ -1378,6 +1418,10 @@ input[type="range"]::-moz-range-thumb {
   $("#sysVideo").textContent = HOST + ":5000/video_feed";
 
   /* ---------------- Boot ---------------- */
+  applySettingsToUI();                 // reflect cached settings immediately
+  fetchServerSettings().then(server => {
+    if (server) { settings = server; saveSettings(); applySettingsToUI(); }
+  });
   startCamera();
   connect();
 })();

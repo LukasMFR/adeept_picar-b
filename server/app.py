@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 from importlib import import_module
 import os
-from flask import Flask, render_template, Response, send_from_directory
+import json
+from flask import Flask, render_template, Response, send_from_directory, request, jsonify
 from flask_cors import *
 # import camera driver
 
@@ -29,6 +30,68 @@ def video_feed():
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
+
+# ---------------------------------------------------------------------------
+# Shared UI settings (server-side JSON config so every phone/computer agrees).
+# Only these keys are accepted from clients and are always coerced to booleans;
+# unknown keys are ignored, so a malformed or hostile body cannot inject state.
+# ---------------------------------------------------------------------------
+SETTINGS_FILE = os.path.join(dir_path, 'robot_settings.json')
+SETTINGS_MAX_BODY = 4096                      # bytes; the payload is tiny
+DEFAULT_SETTINGS = {
+    'version': 1,
+    'invertThrottle': False,
+    'invertSteering': False,
+}
+_ALLOWED_BOOL_KEYS = ('invertThrottle', 'invertSteering')
+_settings_lock = threading.Lock()
+
+
+def read_settings():
+    """Return the stored settings merged over defaults (safe if file missing)."""
+    data = {}
+    try:
+        with open(SETTINGS_FILE, 'r') as f:
+            loaded = json.load(f)
+        if isinstance(loaded, dict):
+            data = loaded
+    except (FileNotFoundError, ValueError, OSError):
+        data = {}
+    merged = dict(DEFAULT_SETTINGS)
+    for key in _ALLOWED_BOOL_KEYS:
+        if key in data:
+            merged[key] = bool(data[key])
+    return merged
+
+
+def write_settings(new_values):
+    """Validate, merge and atomically persist settings; returns the saved dict."""
+    with _settings_lock:
+        current = read_settings()
+        for key in _ALLOWED_BOOL_KEYS:
+            if key in new_values:
+                current[key] = bool(new_values[key])
+        tmp = SETTINGS_FILE + '.tmp'
+        with open(tmp, 'w') as f:
+            json.dump(current, f, indent=2)
+        os.replace(tmp, SETTINGS_FILE)        # atomic swap, no partial writes
+    return current
+
+
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    return jsonify(read_settings())
+
+
+@app.route('/api/settings', methods=['POST'])
+def post_settings():
+    if request.content_length is not None and request.content_length > SETTINGS_MAX_BODY:
+        return jsonify({'error': 'payload too large'}), 413
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'expected a JSON object'}), 400
+    return jsonify(write_settings(data))
+
 
 @app.route('/api/img/<path:filename>')
 def sendimg(filename):
