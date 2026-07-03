@@ -378,7 +378,7 @@ button, .switch, .hold, .home, .tab, .icon-btn, .mini-btn, .cam-retry, .stop, .s
   padding: 10px 6px; border-radius: 13px; cursor: pointer;
   background: transparent; border: none;
   color: var(--text-dim); font-weight: 560; font-size: 13px;
-  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), transform 120ms var(--ease);
 }
 .tab svg { width: 17px; height: 17px; }
 .tab .tlabel { }
@@ -389,6 +389,7 @@ button, .switch, .hold, .home, .tab, .icon-btn, .mini-btn, .cam-retry, .stop, .s
 }
 .tab[aria-selected="true"] svg { color: var(--accent); }
 .tab:not([aria-selected="true"]):hover { color: var(--text); }
+.tab:active { transform: scale(0.96); }        /* momentary press pop (touch + mouse) */
 
 /* Panels container */
 .panels {
@@ -666,9 +667,10 @@ input[type="range"]::-moz-range-thumb {
 .mini-btn {
   padding: 6px 12px; border-radius: 9px; cursor: pointer; font-size: 12px; font-weight: 560;
   background: var(--surface); border: 1px solid var(--hairline); color: var(--text-dim);
-  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), transform 120ms var(--ease);
 }
 .mini-btn:hover { color: var(--text); }
+.mini-btn:active { transform: scale(0.95); background: var(--surface-solid); color: var(--text); }
 
 /* ---------- Persistent STOP ---------- */
 .stopbar {
@@ -805,11 +807,19 @@ input[type="range"]::-moz-range-thumb {
    pressed button. Reset the hover look on coarse pointers (the .active press
    state is driven by JS and cleared on release). */
 @media (hover: none) {
-  .hold:hover { background: var(--surface); }
-  .dpad .home:hover { background: var(--surface); color: var(--text-dim); }
-  .icon-btn:hover { background: var(--panel-2); color: var(--text-dim); }
-  .mini-btn:hover { color: var(--text-dim); }
-  .tab:not([aria-selected="true"]):hover { color: var(--text-dim); }
+  /* Reset only the NON-pressed hover look. The `:not(.active)` / `:not(:active)`
+     guards are essential: a finger held down makes a control both :hover (sticky
+     on iOS) AND pressed, so without them this later rule would override the press
+     state — flattening the accent fill and, in light mode, leaving white label
+     text on a light surface. Keep the press feedback winning; only tame hover. */
+  .hold:not(.active):hover { background: var(--surface); }
+  .dpad .home:not(:active):hover { background: var(--surface); color: var(--text-dim); }
+  .icon-btn:not(:active):hover { background: var(--panel-2); color: var(--text-dim); }
+  .mini-btn:not(:active):hover { color: var(--text-dim); }
+  .tab:not([aria-selected="true"]):not(:active):hover { color: var(--text-dim); }
+  /* STOP: drop the hover glow that iOS would otherwise leave stuck after a tap
+     (its :active scale + .flash pulse still fire while pressed). */
+  .stop:hover { box-shadow: 0 6px 20px var(--danger-soft), 0 2px 6px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.24); }
 }
 @media (max-width: 520px) {
   .topbar { gap: 8px; }
