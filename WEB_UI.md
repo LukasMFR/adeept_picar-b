@@ -97,9 +97,14 @@ The System tab has a Settings section (under "Robot behaviour"):
 
 - **Invert forward / reverse** — swaps the throttle direction if the robot drives
   the opposite way to the buttons (for example if the motors are wired reversed).
+- **Invert direction lights** — swaps the white (forward) and red (reverse) LEDs.
+  Because "Invert forward / reverse" remaps the motor command, the direction lights
+  would otherwise show the wrong colour; turn this on with it so the lights match
+  the button you pressed. Applied on the robot (`webServer.py` reads the setting).
 - **Invert steering** — swaps left and right.
 
-Inversion is applied to the on-screen buttons, the keyboard, and the joystick.
+Throttle/steer inversion is applied to the on-screen buttons, the keyboard, and the
+joystick. The light inversion is applied on the robot itself.
 
 These are **shared, server-side settings** so every phone and computer sees the
 same configuration. The robot keeps the authoritative copy in
@@ -147,7 +152,7 @@ No autonomous or movement test is ever triggered automatically. Autonomous modes
 | ---- | ------ |
 | `server/ui/index.html` | **New.** The entire modern console (HTML + CSS + JS, self-contained). |
 | `server/app.py` | Serve the new console at `/`; keep the original Vue app at `/legacy`; add the `GET`/`POST` `/api/settings` config API. |
-| `server/webServer.py` | **Safety:** added `emergency_stop()` + `E_STOP` command, a receive-timeout watchdog in `recv_msg`, a `heartbeat` no-op, and stop-on-disconnect in `main_logic`. |
+| `server/webServer.py` | **Safety:** added `emergency_stop()` + `E_STOP` command, a receive-timeout watchdog in `recv_msg`, a `heartbeat` no-op, and stop-on-disconnect in `main_logic`. Also reads the shared config to swap the forward/reverse LED colour when "Invert direction lights" is on. |
 | `server/robot_settings.json` | Runtime, per-robot config written by the settings API (git-ignored, created on first save). |
 | `.gitignore` | Ignore `server/robot_settings.json`. |
 | `WEB_UI.md` | **New.** This document. |
@@ -192,6 +197,10 @@ Do these with the **wheels lifted off the ground** for anything involving motors
     tab, drag the joystick up/down/left/right and confirm the robot responds; release
     and confirm it stops. Toggle it back off and confirm the buttons return. Confirm the
     setting sticks after a reload on that device.
+14. **Direction lights (WHEELS LIFTED)** — with "Invert forward / reverse" on, hold
+    Forward and note the LED colour. Turn on "Invert direction lights"; hold Forward
+    again and confirm the colour is now the white/headlight colour (and Reverse shows
+    red). No robot restart is needed; the change applies on the next command.
 
 ## Rollback
 

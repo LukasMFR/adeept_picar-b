@@ -241,6 +241,33 @@ def emergency_stop():
 		pass
 
 
+def leds_inverted():
+	"""Whether the 'Invert direction lights' UI setting is on."""
+	try:
+		return bool(app.get_current_settings().get('invertLEDs'))
+	except Exception:
+		return False
+
+
+def drive_leds(raw_dir):
+	"""Light the direction LEDs for a raw motor command.
+
+	forward -> white headlights, backward -> red. When 'Invert direction lights'
+	is on the two are swapped, so the lights match the button you pressed even
+	while 'Invert forward / reverse' is remapping the motors.
+	"""
+	forward = (raw_dir == 'forward')
+	if leds_inverted():
+		forward = not forward
+	try:
+		if forward:
+			RL.both_on()
+		else:
+			RL.red()
+	except Exception:
+		pass
+
+
 def robotCtrl(command_input, response):
 	global direction_command, turn_command
 	if 'E_STOP' == command_input:
@@ -250,13 +277,13 @@ def robotCtrl(command_input, response):
 		direction_command = 'forward'
 		move.motor_left(1, 0, speed_set)
 		move.motor_right(1, 0, speed_set)
-		RL.both_on()
-	
+		drive_leds('forward')
+
 	elif 'backward' == command_input:
 		direction_command = 'backward'
 		move.motor_left(1, 1, speed_set)
 		move.motor_right(1, 1, speed_set)
-		RL.red()
+		drive_leds('backward')
 
 	elif 'DS' in command_input:
 		direction_command = 'no'
@@ -287,10 +314,10 @@ def robotCtrl(command_input, response):
 		turn_command = 'no'
 		scGear.moveAngle(2, 0)
 		if direction_command == 'forward':
-			RL.both_on()
+			drive_leds('forward')
 		elif direction_command == 'backward':
 			RL.both_off()
-			RL.red()
+			drive_leds('backward')
 		elif direction_command == 'no':
 			RL.both_off()
 

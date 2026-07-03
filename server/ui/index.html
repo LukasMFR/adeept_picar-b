@@ -982,6 +982,11 @@ input[type="range"]::-moz-range-thumb {
                 <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertThrottle" aria-label="Invert forward and reverse"></div>
               </div>
               <div class="row">
+                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4.9 1 .9 1.6v.5h5.2v-.5c0-.6.3-1.2.9-1.6A6 6 0 0 0 12 3z"/><path d="M9.4 18h5.2"/><path d="M4 8h4M16 8h4"/></svg></div>
+                <div class="rtext"><div class="rtitle">Invert direction lights</div><div class="rdesc">Swap the white (forward) and red (reverse) LEDs. Turn on together with "Invert forward / reverse" if the lights end up backwards.</div></div>
+                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertLEDs" aria-label="Invert direction lights"></div>
+              </div>
+              <div class="row">
                 <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4L4 8l4 4M4 8h13M16 20l4-4-4-4M20 16H7"/></svg></div>
                 <div class="rtext"><div class="rtitle">Invert steering</div><div class="rdesc">Swap left and right if your steering is reversed.</div></div>
                 <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertSteering" aria-label="Invert steering"></div>
@@ -1058,6 +1063,7 @@ input[type="range"]::-moz-range-thumb {
     version: 1,
     invertThrottle: false,   // swap forward <-> reverse
     invertSteering: false,   // swap left <-> right
+    invertLEDs: false,       // swap the white/red direction lights (server-side)
   };
   // Accept only known keys, always as booleans, whatever the source.
   function sanitizeSettings(raw) {
@@ -1065,6 +1071,7 @@ input[type="range"]::-moz-range-thumb {
     if (raw && typeof raw === "object") {
       out.invertThrottle = !!raw.invertThrottle;
       out.invertSteering = !!raw.invertSteering;
+      out.invertLEDs = !!raw.invertLEDs;
     }
     return out;
   }
@@ -1088,7 +1095,7 @@ input[type="range"]::-moz-range-thumb {
       const r = await fetch(SETTINGS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invertThrottle: settings.invertThrottle, invertSteering: settings.invertSteering }),
+        body: JSON.stringify({ invertThrottle: settings.invertThrottle, invertSteering: settings.invertSteering, invertLEDs: settings.invertLEDs }),
       });
       if (!r.ok) return null;
       return sanitizeSettings(await r.json());

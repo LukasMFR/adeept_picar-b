@@ -42,9 +42,11 @@ DEFAULT_SETTINGS = {
     'version': 1,
     'invertThrottle': False,
     'invertSteering': False,
+    'invertLEDs': False,
 }
-_ALLOWED_BOOL_KEYS = ('invertThrottle', 'invertSteering')
+_ALLOWED_BOOL_KEYS = ('invertThrottle', 'invertSteering', 'invertLEDs')
 _settings_lock = threading.Lock()
+_settings_cache = None                         # in-process cache; webServer.py reads this
 
 
 def read_settings():
@@ -64,8 +66,17 @@ def read_settings():
     return merged
 
 
+def get_current_settings():
+    """Fast, cached access for the control loop (avoids a file read per command)."""
+    global _settings_cache
+    if _settings_cache is None:
+        _settings_cache = read_settings()
+    return _settings_cache
+
+
 def write_settings(new_values):
     """Validate, merge and atomically persist settings; returns the saved dict."""
+    global _settings_cache
     with _settings_lock:
         current = read_settings()
         for key in _ALLOWED_BOOL_KEYS:
@@ -75,6 +86,7 @@ def write_settings(new_values):
         with open(tmp, 'w') as f:
             json.dump(current, f, indent=2)
         os.replace(tmp, SETTINGS_FILE)        # atomic swap, no partial writes
+        _settings_cache = current             # keep the cache in sync for the control loop
     return current
 
 
