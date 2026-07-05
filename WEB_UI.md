@@ -177,14 +177,15 @@ The UI and backend cooperate so the robot never keeps moving unattended:
 
 - **Hold-to-move only.** Press-and-hold sends the move command; releasing sends the
   matching stop (`DS` for drive, `TS` for steer, `UDstop`/`LRstop` for the camera).
-- **Release backstops.** `pointerup`, `pointercancel`, lost pointer capture, window
-  `blur`, and `visibilitychange` (tab hidden) all release every held control. Tab
-  hidden also fires an `E_STOP`.
+- **Release backstops.** `pointerup`, confirmed touch release/cancel, lost pointer
+  capture, window `blur`, and `visibilitychange` (tab hidden) all release every
+  held control. Tab hidden also fires an `E_STOP`.
 - **Always-visible STOP.** Sends `E_STOP`, plus `DS`/`TS`, and clears any held
   controls and autonomous-mode toggles. `Esc` on desktop does the same.
-- **Heartbeat + server watchdog.** The client sends a `heartbeat` every second.
-  `webServer.py` waits at most `COMMAND_TIMEOUT` (2.5s) for any message; if the link
-  goes silent (phone sleeps, Wi-Fi drops) it stops the motors.
+- **Heartbeat + server watchdog.** The client sends an idle `heartbeat` every
+  500ms, or re-sends the held drive/steer command at the same cadence while a
+  control is pressed. `webServer.py` waits at most `COMMAND_TIMEOUT` (5s) for any
+  message; if the link goes silent (phone sleeps, Wi-Fi drops) it stops the motors.
 - **Stop on disconnect.** `main_logic` stops the motors in a `finally` block when the
   client disconnects for any reason.
 - **Clear disconnected state.** The top-bar dot turns red, controls report "Not

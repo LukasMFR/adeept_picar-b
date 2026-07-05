@@ -1317,7 +1317,7 @@ input[type="range"]::-moz-range-thumb {
   const WS_URL = "ws://" + HOST + ":8888";
   const VIDEO_URL = "http://" + HOST + ":5000/video_feed";
   const CREDS = "admin:123456";
-  const HEARTBEAT_MS = 1000;      // must stay under the server watchdog timeout
+  const HEARTBEAT_MS = 500;       // held drive commands are reasserted twice/sec
   const INFO_MS = 4000;
   const RECONNECT_MIN = 800;
   const RECONNECT_MAX = 6000;
@@ -1512,8 +1512,8 @@ input[type="range"]::-moz-range-thumb {
 
   /* ---------------- Keepalive ----------------
      The server runs a motor watchdog: if it hears nothing for COMMAND_TIMEOUT
-     (2.5s) it cuts the motors. The UI sends a drive command only once on press,
-     so a held button relies on this tick to keep the link fed. Instead of a bare
+     it cuts the motors. The UI sends a drive command only once on press, so a
+     held button relies on this tick to keep the link fed. Instead of a bare
      "heartbeat", we RE-ASSERT the currently held drivetrain command(s) each tick:
      that both feeds the watchdog and, if it ever tripped on a stall, restarts the
      motion within one tick without the user releasing the button.
@@ -1614,6 +1614,7 @@ input[type="range"]::-moz-range-thumb {
   // buttons can be held at once and each releases independently (fixes iOS
   // multi-touch and stuck buttons — no global "release everything on pointerup").
   const pointerBtn = new Map();   // pointerId -> button
+  const cancelledTouchBtns = new Set();
   $$(".hold").forEach(btn => {
     btn.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -1636,8 +1637,41 @@ input[type="range"]::-moz-range-thumb {
     pointerBtn.forEach((b) => { if (b === btn) stillHeld = true; });
     if (!stillHeld) pressEnd(btn);
   }
+  function touchStillOverButton(btn, touches) {
+    for (let i = 0; i < touches.length; i++) {
+      const t = touches[i];
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      if (el && (el === btn || btn.contains(el))) return true;
+    }
+    return false;
+  }
+  function releaseCancelledTouches(e) {
+    if (!cancelledTouchBtns.size) return;
+    const touches = e && e.touches ? e.touches : [];
+    cancelledTouchBtns.forEach(btn => {
+      if (!touchStillOverButton(btn, touches)) {
+        cancelledTouchBtns.delete(btn);
+        pressEnd(btn);
+      }
+    });
+  }
+  function cancelPointer(e) {
+    const btn = pointerBtn.get(e.pointerId);
+    if (!btn) return;
+    pointerBtn.delete(e.pointerId);
+    if (e.pointerType === "touch" && !document.hidden) {
+      cancelledTouchBtns.add(btn);
+      return;
+    }
+    // Mouse/pen cancellations are real releases; touch cancellations can be
+    // browser noise during long holds and are resolved by touchend/touchcancel.
+    pressEnd(btn);
+  }
   window.addEventListener("pointerup", releasePointer);
-  window.addEventListener("pointercancel", releasePointer);
+  window.addEventListener("pointercancel", cancelPointer);
+  window.addEventListener("touchend", releaseCancelledTouches, { passive: true });
+  window.addEventListener("touchcancel", releaseCancelledTouches, { passive: true });
+  window.addEventListener("touchmove", releaseCancelledTouches, { passive: true });
 
   /* ---------------- Joystick control ----------------
      Drag maps to the robot's discrete commands: vertical -> forward/backward,
@@ -1721,8 +1755,8 @@ input[type="range"]::-moz-range-thumb {
   joystick.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // Global backstops: never leave the robot driving if focus/visibility is lost.
-  window.addEventListener("blur", () => { pointerBtn.clear(); releaseAllHeld(true); joyReset(); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { pointerBtn.clear(); releaseAllHeld(true); joyReset(); send("E_STOP"); } });
+  window.addEventListener("blur", () => { pointerBtn.clear(); cancelledTouchBtns.clear(); releaseAllHeld(true); joyReset(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) { pointerBtn.clear(); cancelledTouchBtns.clear(); releaseAllHeld(true); joyReset(); send("E_STOP"); } });
 
   /* ---------------- Emergency STOP ---------------- */
   // Two triggers share one handler: the full STOP (desktop, top of dock) and the
@@ -1731,6 +1765,7 @@ input[type="range"]::-moz-range-thumb {
   function flashStop(btn) { if (!btn) return; btn.classList.remove("flash"); void btn.offsetWidth; btn.classList.add("flash"); }
   function emergencyStop() {
     pointerBtn.clear();
+    cancelledTouchBtns.clear();
     releaseAllHeld(false);
     joyReset();
     // Send an explicit stop even if not "authed" yet — best effort.

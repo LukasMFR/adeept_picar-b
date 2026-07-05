@@ -269,8 +269,10 @@ def switchCtrl(command_input, response):
 
 
 # Time (seconds) the server will wait for any client message (commands or the
-# client heartbeat) before it assumes the link is dead and stops the motors.
-COMMAND_TIMEOUT = 2.5
+# client heartbeat) before it assumes the link is dead and stops the motors. The
+# web UI reasserts held drive commands twice per second, so this still stops a
+# true disconnect quickly while leaving room for Wi-Fi/MJPEG jitter on the Pi.
+COMMAND_TIMEOUT = 5.0
 
 
 def emergency_stop():
