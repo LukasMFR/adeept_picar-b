@@ -273,6 +273,7 @@ def switchCtrl(command_input, response):
 # liveness should be handled here instead of by timing out application messages.
 WS_PING_INTERVAL = 2.0
 WS_PING_TIMEOUT = 4.0
+WS_CLOSE_TIMEOUT = 1.0
 
 
 def emergency_stop():
@@ -702,7 +703,8 @@ if __name__ == '__main__':
 				'0.0.0.0',
 				8888,
 				ping_interval=WS_PING_INTERVAL,
-				ping_timeout=WS_PING_TIMEOUT
+				ping_timeout=WS_PING_TIMEOUT,
+				close_timeout=WS_CLOSE_TIMEOUT
 			)
 			asyncio.get_event_loop().run_until_complete(start_server)
 			print('waiting for connection...')

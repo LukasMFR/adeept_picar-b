@@ -187,7 +187,8 @@ The UI and backend cooperate so the robot never keeps moving unattended:
   control is pressed. Connection safety is handled by server-side WebSocket
   ping/pong, so mobile timer delays during a long touch hold do not trigger a
   false motor stop. If the link really dies (phone sleeps, Wi-Fi drops),
-  `main_logic` stops the motors in its disconnect `finally` block.
+  `main_logic` stops the motors in its disconnect `finally` block; the close
+  timeout is kept short so silent radio loss is cut off promptly.
 - **Stop on disconnect.** `main_logic` stops the motors in a `finally` block when the
   client disconnects for any reason.
 - **Clear disconnected state.** The top-bar dot turns red, controls report "Not
