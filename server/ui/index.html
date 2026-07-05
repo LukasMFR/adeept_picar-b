@@ -843,6 +843,18 @@ input[type="range"]::-moz-range-thumb {
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* iOS haptic fallback: a visually-hidden native switch. Toggling it inside a
+   user gesture makes iOS Safari (17.4+) play its system tick — the only
+   no-dependency haptic path on iPhone, where navigator.vibrate is absent. Kept
+   rendered (opacity, not display:none) so the toggle is actually processed, and
+   pulled out of the layout / a11y tree so it never shows or steals focus. */
+.haptic-switch {
+  position: fixed; top: 0; left: 0;
+  width: 1px; height: 1px;
+  opacity: 0; pointer-events: none;
+  z-index: -1; overflow: hidden;
+}
+
 /* ---------- Desktop layout ---------- */
 @media (min-width: 900px) {
   .app { padding: calc(var(--safe-t) + 16px) 24px 18px; }
@@ -1245,6 +1257,13 @@ input[type="range"]::-moz-range-thumb {
                   <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-pref="joySpeed" aria-label="Speed follows finger distance"></div>
                 </div>
               </div>
+              <div class="setting-group">
+                <div class="row">
+                  <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M12 7v10"/><path d="M4 9v6M20 9v6"/></svg></div>
+                  <div class="rtext"><div class="rtitle">Haptic feedback</div><div class="rdesc">A subtle buzz on drive, camera, tab, and STOP controls. Needs a phone that supports vibration; ignored where it doesn't.</div></div>
+                  <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-pref="haptics" aria-label="Haptic feedback"></div>
+                </div>
+              </div>
 
               <div class="group-label">Robot behaviour</div>
               <div class="setting-group">
@@ -1407,11 +1426,17 @@ input[type="range"]::-moz-range-thumb {
   // joySpeed: when the joystick is on, finger distance from centre sets the speed
   // (bypassing the speed slider). Kept here (device-local) alongside `joystick`
   // because both are per-device interaction choices, not shared robot behaviour.
-  const DEFAULT_PREFS = { joystick: false, joySpeed: false };
+  // haptics defaults on so touch devices keep the subtle feedback they had before
+  // this setting existed; the switch simply lets a device opt out.
+  const DEFAULT_PREFS = { joystick: false, joySpeed: false, haptics: true };
   function loadPrefs() {
     let raw = {};
     try { raw = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}"); } catch (e) {}
-    return { joystick: !!(raw && raw.joystick), joySpeed: !!(raw && raw.joySpeed) };
+    return {
+      joystick: !!(raw && raw.joystick),
+      joySpeed: !!(raw && raw.joySpeed),
+      haptics: raw && typeof raw.haptics === "boolean" ? raw.haptics : DEFAULT_PREFS.haptics,
+    };
   }
   function savePrefs() {
     try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {}
@@ -1427,6 +1452,49 @@ input[type="range"]::-moz-range-thumb {
     if (hint) hint.textContent = prefs.joySpeed ? "Push farther to go faster" : "Drag to drive";
   }
   let prefs = loadPrefs();
+
+  /* ---------------- Haptics ----------------
+     Progressive enhancement, entirely optional and never on the safety path.
+     Two backends, picked by capability, both wrapped so any failure is silent:
+       • navigator.vibrate() — Android / Chrome. Short patterns per interaction.
+       • iOS Safari has no vibrate API, so we fall back to a native
+         <input type="checkbox" switch>: toggling it inside a user gesture makes
+         iOS play its system tick. iOS gives one fixed tick with no intensity
+         control, so every event degrades to that single tick there.
+     Gated by the device-local `haptics` pref; a no-op when off or unsupported. */
+  const HAPTIC_PATTERNS = {
+    press:   8,             // hold a drive / camera button, engage the joystick
+    release: 4,             // let the joystick spring back
+    select:  10,            // tab switch, camera Center / Scan
+    toggle:  10,            // flip a settings switch
+    stop:    [12, 30, 12],  // emergency STOP — a distinct triple pulse
+  };
+  const canVibrate = typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+  // Only build the iOS switch where it exists (Safari 17.4+) and vibrate is
+  // absent, so no stray control is ever created on other browsers.
+  const iosHapticSwitch = (function () {
+    if (canVibrate) return null;
+    try {
+      if (!("switch" in HTMLInputElement.prototype)) return null;
+      const label = document.createElement("label");
+      label.className = "haptic-switch";
+      label.setAttribute("aria-hidden", "true");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.setAttribute("switch", "");
+      input.tabIndex = -1;
+      label.appendChild(input);
+      (document.body || document.documentElement).appendChild(label);
+      return input;
+    } catch (e) { return null; }
+  })();
+  function haptic(kind) {
+    if (!prefs.haptics) return;
+    try {
+      if (canVibrate) { navigator.vibrate(HAPTIC_PATTERNS[kind] || 8); return; }
+      if (iosHapticSwitch) iosHapticSwitch.click();   // toggles the switch -> iOS tick
+    } catch (e) { /* haptics are non-essential: never let them surface an error */ }
+  }
 
   /* ---------------- Logging ---------------- */
   const logEl = $("#log");
@@ -1602,7 +1670,7 @@ input[type="range"]::-moz-range-thumb {
     if (!send(effectiveCmd(cmd))) { toast("Not connected"); return; }
     btn.classList.add("active");
     if (stop) heldStops.add(stop);
-    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+    haptic("press");
   }
   function pressEnd(btn) {
     if (!btn.classList.contains("active")) return;
@@ -1743,6 +1811,7 @@ input[type="range"]::-moz-range-thumb {
     try { joystick.setPointerCapture(e.pointerId); } catch (err) {}
     joystick.classList.add("engaged");
     joyKnob.style.transition = "none";       // follow the finger instantly
+    haptic("press");                         // tick on engage (release ticks in joyEnd)
     joyMove(e.clientX, e.clientY);
   });
   joystick.addEventListener("pointermove", (e) => {
@@ -1753,6 +1822,7 @@ input[type="range"]::-moz-range-thumb {
   function joyEnd(e) {
     if (joyPointer === null || (e && e.pointerId !== joyPointer)) return;
     joyKnob.style.transition = "";           // restore the spring-back animation
+    haptic("release");                       // genuine user release only (joyReset elsewhere is silent)
     joyReset();
   }
   joystick.addEventListener("pointerup", joyEnd);
@@ -1781,7 +1851,7 @@ input[type="range"]::-moz-range-thumb {
     // Reset autonomous-mode switches in the UI (they command the robot to move).
     $$('.switch[data-motion="1"][aria-checked="true"]').forEach(sw => setSwitch(sw, false, true));
     toast(ok ? "Emergency stop sent" : "Stop sent (reconnecting)");
-    if (navigator.vibrate) { try { navigator.vibrate([12, 30, 12]); } catch (e) {} }
+    haptic("stop");
   }
   stopBtn.addEventListener("click", emergencyStop);
   if (stopBtnMini) stopBtnMini.addEventListener("click", emergencyStop);
@@ -1867,7 +1937,9 @@ input[type="range"]::-moz-range-thumb {
     // Reflect any persisted setting/pref on load.
     if (sw.dataset.setting && settings[sw.dataset.setting]) sw.setAttribute("aria-checked", "true");
     if (sw.dataset.pref && prefs[sw.dataset.pref]) sw.setAttribute("aria-checked", "true");
-    const toggle = () => setSwitch(sw, sw.getAttribute("aria-checked") !== "true", false);
+    // haptic() runs after setSwitch so it reads the updated pref: turning haptics
+    // ON gives a confirming tick, turning it OFF is itself silent.
+    const toggle = () => { setSwitch(sw, sw.getAttribute("aria-checked") !== "true", false); haptic("toggle"); };
     sw.addEventListener("click", toggle);
     sw.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
   });
@@ -1884,8 +1956,8 @@ input[type="range"]::-moz-range-thumb {
   paintSpeed();
 
   /* ---------------- Camera home + scan ---------------- */
-  $("#camHome").addEventListener("click", () => { if (send("home")) toast("Camera centered"); else toast("Not connected"); });
-  $("#scanBtn").addEventListener("click", () => { if (send("scan")) toast("Scanning…"); else toast("Not connected"); });
+  $("#camHome").addEventListener("click", () => { haptic("select"); if (send("home")) toast("Camera centered"); else toast("Not connected"); });
+  $("#scanBtn").addEventListener("click", () => { haptic("select"); if (send("scan")) toast("Scanning…"); else toast("Not connected"); });
 
   /* ---------------- Tabs ---------------- */
   const tabs = $$(".tab");
@@ -1901,6 +1973,7 @@ input[type="range"]::-moz-range-thumb {
     });
   });
   function selectTab(tab) {
+    haptic("select");
     pointerBtn.clear();
     releaseAllHeld(true);   // switching away from Drive must not leave motors running
     joyReset();
