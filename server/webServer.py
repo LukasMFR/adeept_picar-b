@@ -428,11 +428,12 @@ def robotCtrl(command_input, response):
 
 
 	elif 'home' == command_input:
-		# Recentre every servo on its calibrated centre (initPos). moveServoInit
-		# takes channel IDs, so pass the channels, not the PWM values.
+		# Camera "Center" button: recentre the camera servos only, on their
+		# calibrated centres (initPos). moveServoInit takes channel IDs, so pass
+		# the channels, not the PWM values. Steering (CH2) is deliberately left
+		# alone here; it recentres on steer-release (TS) and on E_STOP.
 		T_sc.moveServoInit([0])      # camera tilt
 		P_sc.moveServoInit([1])      # camera pan
-		scGear.moveServoInit([2])    # steering
 
 
 def configPWM(command_input, response):
