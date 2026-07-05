@@ -1518,17 +1518,16 @@ input[type="range"]::-moz-range-thumb {
   }
 
   /* ---------------- Keepalive ----------------
-     The server runs a motor watchdog: if it hears nothing for COMMAND_TIMEOUT
-     it cuts the motors. The UI sends a drive command only once on press, so a
-     held button relies on this tick to keep the link fed. Instead of a bare
-     "heartbeat", we RE-ASSERT the currently held drivetrain command(s) each tick:
-     that both feeds the watchdog and, if it ever tripped on a stall, restarts the
-     motion within one tick without the user releasing the button.
+     The server uses WebSocket ping/pong for connection liveness, because mobile
+     browsers may delay page-level timers during long touch holds. This client
+     tick is therefore not the safety cutoff; it simply reasserts the currently
+     held drivetrain command(s) so a transient motor stop or dropped command can
+     recover without the user releasing the button.
 
      Only forward/backward/left/right are re-sent — they are the motor/steer
-     commands the watchdog can cut. Camera pan/tilt (up/down/lookleft/lookright)
-     are continuous wiggle servos that a repeat would restart, and they aren't
-     governed by the motor watchdog, so they are deliberately excluded. */
+     commands that can safely be reasserted. Camera pan/tilt
+     (up/down/lookleft/lookright) are continuous wiggle servos that a repeat
+     would restart, so they are deliberately excluded. */
   const DRIVE_CMDS = new Set(["forward", "backward", "left", "right"]);
   function activeDriveCmds() {
     const cmds = [];

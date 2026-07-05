@@ -182,10 +182,12 @@ The UI and backend cooperate so the robot never keeps moving unattended:
   held control. Tab hidden also fires an `E_STOP`.
 - **Always-visible STOP.** Sends `E_STOP`, plus `DS`/`TS`, and clears any held
   controls and autonomous-mode toggles. `Esc` on desktop does the same.
-- **Heartbeat + server watchdog.** The client sends an idle `heartbeat` every
+- **Heartbeat + WebSocket liveness.** The client sends an idle `heartbeat` every
   500ms, or re-sends the held drive/steer command at the same cadence while a
-  control is pressed. `webServer.py` waits at most `COMMAND_TIMEOUT` (5s) for any
-  message; if the link goes silent (phone sleeps, Wi-Fi drops) it stops the motors.
+  control is pressed. Connection safety is handled by server-side WebSocket
+  ping/pong, so mobile timer delays during a long touch hold do not trigger a
+  false motor stop. If the link really dies (phone sleeps, Wi-Fi drops),
+  `main_logic` stops the motors in its disconnect `finally` block.
 - **Stop on disconnect.** `main_logic` stops the motors in a `finally` block when the
   client disconnects for any reason.
 - **Clear disconnected state.** The top-bar dot turns red, controls report "Not
@@ -200,7 +202,7 @@ No autonomous or movement test is ever triggered automatically. Autonomous modes
 | ---- | ------ |
 | `server/ui/index.html` | **New.** The entire modern console (HTML + CSS + JS, self-contained). |
 | `server/app.py` | Serve the new console at `/`; keep the original Vue app at `/legacy`; add the `GET`/`POST` `/api/settings` config API and the `GET`/`POST` `/api/servo_calibration` API. |
-| `server/webServer.py` | **Safety:** added `emergency_stop()` + `E_STOP` command, a receive-timeout watchdog in `recv_msg`, a `heartbeat` no-op, and stop-on-disconnect in `main_logic`. Also reads the shared config to swap the forward/reverse LED colour when "Invert direction lights" is on. **Servo calibration:** loads the calibration into the live controllers at start-up and on save, and fixes the `home`/Center command (it referenced an undefined `G_sc` and passed PWM values as channel IDs). |
+| `server/webServer.py` | **Safety:** added `emergency_stop()` + `E_STOP` command, WebSocket ping/pong liveness, a `heartbeat` no-op, and stop-on-disconnect in `main_logic`. Also reads the shared config to swap the forward/reverse LED colour when "Invert direction lights" is on. **Servo calibration:** loads the calibration into the live controllers at start-up and on save, and fixes the `home`/Center command (it referenced an undefined `G_sc` and passed PWM values as channel IDs). |
 | `server/robot_settings.json` | Runtime, per-robot config written by the settings API (git-ignored, created on first save). |
 | `server/robot_servo_calibration.json` | Runtime, per-robot servo calibration written by the calibration API (git-ignored, created on first save). |
 | `.gitignore` | Ignore `server/robot_settings.json`. |

@@ -268,11 +268,11 @@ def switchCtrl(command_input, response):
 		switch.switch(3,0) 
 
 
-# Time (seconds) the server will wait for any client message (commands or the
-# client heartbeat) before it assumes the link is dead and stops the motors. The
-# web UI reasserts held drive commands twice per second, so this still stops a
-# true disconnect quickly while leaving room for Wi-Fi/MJPEG jitter on the Pi.
-COMMAND_TIMEOUT = 5.0
+# WebSocket keepalive. The browser automatically answers ping frames even when
+# page-level JavaScript timers are delayed during a long touch hold, so connection
+# liveness should be handled here instead of by timing out application messages.
+WS_PING_INTERVAL = 2.0
+WS_PING_TIMEOUT = 4.0
 
 
 def emergency_stop():
@@ -575,16 +575,7 @@ async def recv_msg(websocket):
 		}
 
 		data = ''
-		try:
-			# Watchdog: if the client goes silent (it sends a heartbeat every
-			# second), assume the link is lost and stop the motors.
-			data = await asyncio.wait_for(websocket.recv(), timeout=COMMAND_TIMEOUT)
-		except asyncio.TimeoutError:
-			try:
-				move.motorStop()
-			except Exception:
-				pass
-			continue
+		data = await websocket.recv()
 
 		if data == 'heartbeat':
 			continue
@@ -706,7 +697,13 @@ if __name__ == '__main__':
 	while  1:
 		wifi_check()
 		try:                  #Start server,waiting for client
-			start_server = websockets.serve(main_logic, '0.0.0.0', 8888)
+			start_server = websockets.serve(
+				main_logic,
+				'0.0.0.0',
+				8888,
+				ping_interval=WS_PING_INTERVAL,
+				ping_timeout=WS_PING_TIMEOUT
+			)
 			asyncio.get_event_loop().run_until_complete(start_server)
 			print('waiting for connection...')
 			# print('...connected from :', addr)
