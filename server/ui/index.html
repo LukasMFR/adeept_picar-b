@@ -1456,9 +1456,11 @@ input[type="range"]::-moz-range-thumb {
   }
 
   /* ---------------- Send ---------------- */
-  function send(cmd) {
+  // `quiet` suppresses the debug-log line (used by the keepalive, which re-sends
+  // the held drive command every tick and would otherwise flood the log).
+  function send(cmd, quiet) {
     if (!ws || ws.readyState !== WebSocket.OPEN || !authed) return false;
-    try { ws.send(cmd); if (cmd !== "heartbeat") log("out", cmd); return true; }
+    try { ws.send(cmd); if (cmd !== "heartbeat" && !quiet) log("out", cmd); return true; }
     catch (e) { return false; }
   }
 
@@ -1508,7 +1510,35 @@ input[type="range"]::-moz-range-thumb {
     reconnectDelay = Math.min(RECONNECT_MAX, Math.round(reconnectDelay * 1.6));
   }
 
-  function startHeartbeat() { stopHeartbeat(); heartbeatTimer = setInterval(() => send("heartbeat"), HEARTBEAT_MS); }
+  /* ---------------- Keepalive ----------------
+     The server runs a motor watchdog: if it hears nothing for COMMAND_TIMEOUT
+     (2.5s) it cuts the motors. The UI sends a drive command only once on press,
+     so a held button relies on this tick to keep the link fed. Instead of a bare
+     "heartbeat", we RE-ASSERT the currently held drivetrain command(s) each tick:
+     that both feeds the watchdog and, if it ever tripped on a stall, restarts the
+     motion within one tick without the user releasing the button.
+
+     Only forward/backward/left/right are re-sent — they are the motor/steer
+     commands the watchdog can cut. Camera pan/tilt (up/down/lookleft/lookright)
+     are continuous wiggle servos that a repeat would restart, and they aren't
+     governed by the motor watchdog, so they are deliberately excluded. */
+  const DRIVE_CMDS = new Set(["forward", "backward", "left", "right"]);
+  function activeDriveCmds() {
+    const cmds = [];
+    $$(".hold.active").forEach(b => {              // covers touch + physical keys
+      const c = b.dataset.cmd;
+      if (c && DRIVE_CMDS.has(c)) cmds.push(effectiveCmd(c));
+    });
+    if (joyThrottle) cmds.push(effectiveCmd(joyThrottle));   // joystick throttle
+    if (joySteer)    cmds.push(effectiveCmd(joySteer));      // joystick steer
+    return cmds;
+  }
+  function keepaliveTick() {
+    const cmds = activeDriveCmds();
+    if (cmds.length) cmds.forEach(c => send(c, true));   // re-assert held motion (quietly)
+    else send("heartbeat");                              // idle: plain keepalive
+  }
+  function startHeartbeat() { stopHeartbeat(); heartbeatTimer = setInterval(keepaliveTick, HEARTBEAT_MS); }
   function stopHeartbeat() { if (heartbeatTimer) clearInterval(heartbeatTimer); heartbeatTimer = null; }
   function startInfo() { stopInfo(); infoTimer = setInterval(() => { pingSentAt = performance.now(); send("get_info"); }, INFO_MS); }
   function stopInfo() { if (infoTimer) clearInterval(infoTimer); infoTimer = null; }
