@@ -44,23 +44,82 @@ rad = 0.5
 turnWiggle = 60
 
 scGear = RPIservo.ServoCtrl()
-scGear.moveInit()
-
 P_sc = RPIservo.ServoCtrl()
-P_sc.start()
-
 T_sc = RPIservo.ServoCtrl()
-T_sc.start()
 
 
 # modeSelect = 'none'
 modeSelect = 'PT'
 
-init_pwm0 = scGear.initPos[0]
-init_pwm1 = scGear.initPos[1]
-init_pwm2 = scGear.initPos[2]
+init_pwm0 = 300
+init_pwm1 = 300
+init_pwm2 = 300
 init_pwm3 = scGear.initPos[3]
 init_pwm4 = scGear.initPos[4]
+
+# Channel -> the controller that physically drives it. Channels 0, 1, 2 are the
+# only servos: 0 = camera tilt (T_sc), 1 = camera pan (P_sc), 2 = steering (scGear).
+SERVO_CONTROLLERS = {0: T_sc, 1: P_sc, 2: scGear}
+
+
+def apply_servo_calibration(cal, move=False):
+	"""Push the saved calibration (from app.py) into the live servo controllers.
+
+	Sets each servo's centre (initPos) and travel limits (min/max) so the camera
+	'Center' button and steering rest where the user calibrated them. All three
+	controller arrays are kept consistent for the shared channels. When move=True
+	the servo is eased to its new centre so the effect is visible while
+	calibrating; at start-up we set the values silently and let the normal init
+	move settle them.
+	"""
+	global init_pwm0, init_pwm1, init_pwm2
+	servos = cal.get('servos', {}) if isinstance(cal, dict) else {}
+	if not isinstance(servos, dict):
+		servos = {}
+	for ch, primary in SERVO_CONTROLLERS.items():
+		raw = servos.get(str(ch))
+		if not isinstance(raw, dict):
+			continue
+		try:
+			center = int(raw['center'])
+			mn = int(raw['min'])
+			mx = int(raw['max'])
+		except (KeyError, TypeError, ValueError):
+			continue
+		for ctrl in (scGear, P_sc, T_sc):
+			ctrl.minPos[ch] = mn
+			ctrl.maxPos[ch] = mx
+			ctrl.initPos[ch] = center
+		if ch == 0:
+			init_pwm0 = center
+		elif ch == 1:
+			init_pwm1 = center
+		elif ch == 2:
+			init_pwm2 = center
+		if move:
+			try:
+				primary.setPWM(ch, center)
+			except Exception:
+				pass
+
+
+# Load calibration before the first init move so the robot settles on the
+# calibrated centres rather than the hard-coded 300.
+try:
+	apply_servo_calibration(app.get_current_servo_calibration(), move=False)
+except Exception as e:
+	print('Servo calibration not applied at start-up:', e)
+
+scGear.moveInit()
+P_sc.start()
+T_sc.start()
+
+# Flask runs in this same process, so a save from the web UI can be applied to
+# the running servos immediately (no restart).
+try:
+	app.register_servo_apply(lambda cal: apply_servo_calibration(cal, move=True))
+except Exception as e:
+	print('Servo calibration live-apply hook not registered:', e)
 
 fuc = functions.Functions()
 fuc.start()
@@ -369,9 +428,11 @@ def robotCtrl(command_input, response):
 
 
 	elif 'home' == command_input:
-		P_sc.moveServoInit([init_pwm1])
-		T_sc.moveServoInit([init_pwm0])
-		G_sc.moveServoInit([init_pwm2])
+		# Recentre every servo on its calibrated centre (initPos). moveServoInit
+		# takes channel IDs, so pass the channels, not the PWM values.
+		T_sc.moveServoInit([0])      # camera tilt
+		P_sc.moveServoInit([1])      # camera pan
+		scGear.moveServoInit([2])    # steering
 
 
 def configPWM(command_input, response):

@@ -126,6 +126,51 @@ shows the cached values instantly on load, then refreshes them from the robot;
 if the robot's API is unreachable it keeps working from the cache. The settings
 file is per-robot and is not tracked in git.
 
+### Servo calibration
+
+The System tab has a **Servo calibration** section (under "Robot behaviour").
+The PiCar-B has three servos on PCA9685 channels 0, 1, 2:
+
+| Channel | Servo | Controller |
+| ------- | ----- | ---------- |
+| 0 | Camera tilt (up / down) | `T_sc` |
+| 1 | Camera pan (left / right) | `P_sc` |
+| 2 | Steering (front wheels) | `scGear` |
+
+Each servo has a **center** (its resting PWM) plus a **min** and **max** travel
+limit. The center is what the camera **Center** button and the steering neutral
+resolve to; `300` is the official Adeept safe default. Adjust a center with the
+`−5 / −1 / +1 / +5` steppers or by typing a value; min/max are typed fields. Every
+value is clamped to the driver's safe PWM range (`100`–`560`), `min ≤ max` is
+enforced, and the center is kept inside `[min, max]`, on both the client and the
+server, so a bad or hostile value can never push a servo past its limits.
+
+Calibration is a **shared, server-side** config, like the behaviour settings. The
+robot keeps the authoritative copy in `server/robot_servo_calibration.json` and
+exposes a JSON API:
+
+| Method | Endpoint | Behaviour |
+| ------ | -------- | --------- |
+| `GET`  | `/api/servo_calibration` | Returns the calibration (defaults if none saved). |
+| `POST` | `/api/servo_calibration` | Accepts `{ "servos": { "0": { "center", "min", "max" }, ... } }` (partial updates allowed); validates and clamps every value, writes atomically, applies it to the live servos, and returns the saved calibration. |
+
+Saving **applies live** without a restart: `webServer.py` registers a callback on
+the Flask app (they share one process), so a save updates each servo's center and
+limits immediately and gently eases the servo to its new center, letting you see
+where "straight" really is while you calibrate. On startup the calibration is
+loaded **before** the first init move, so the robot settles on the calibrated
+centers rather than the hard-coded `300`.
+
+The first time the robot file is absent, calibration is **seeded once** from the
+user's hand-calibrated `~/adeept_servo_calibration.json` (read-only; several JSON
+shapes are tolerated). After that, edits in the UI own the value and are written
+to `server/robot_servo_calibration.json` (per-robot, not tracked in git).
+`localStorage["picar-servo-cal"]` is only a cache/fallback, exactly like the
+behaviour settings.
+
+The legacy Vue interface's own servo-tuning commands (`SiLeft`/`SiRight`/`PWMMS`/
+`PWMD`, which rewrite `RPIservo.py`) are left untouched and still work.
+
 ## Safety model
 
 The UI and backend cooperate so the robot never keeps moving unattended:
@@ -153,9 +198,10 @@ No autonomous or movement test is ever triggered automatically. Autonomous modes
 | File | Change |
 | ---- | ------ |
 | `server/ui/index.html` | **New.** The entire modern console (HTML + CSS + JS, self-contained). |
-| `server/app.py` | Serve the new console at `/`; keep the original Vue app at `/legacy`; add the `GET`/`POST` `/api/settings` config API. |
-| `server/webServer.py` | **Safety:** added `emergency_stop()` + `E_STOP` command, a receive-timeout watchdog in `recv_msg`, a `heartbeat` no-op, and stop-on-disconnect in `main_logic`. Also reads the shared config to swap the forward/reverse LED colour when "Invert direction lights" is on. |
+| `server/app.py` | Serve the new console at `/`; keep the original Vue app at `/legacy`; add the `GET`/`POST` `/api/settings` config API and the `GET`/`POST` `/api/servo_calibration` API. |
+| `server/webServer.py` | **Safety:** added `emergency_stop()` + `E_STOP` command, a receive-timeout watchdog in `recv_msg`, a `heartbeat` no-op, and stop-on-disconnect in `main_logic`. Also reads the shared config to swap the forward/reverse LED colour when "Invert direction lights" is on. **Servo calibration:** loads the calibration into the live controllers at start-up and on save, and fixes the `home`/Center command (it referenced an undefined `G_sc` and passed PWM values as channel IDs). |
 | `server/robot_settings.json` | Runtime, per-robot config written by the settings API (git-ignored, created on first save). |
+| `server/robot_servo_calibration.json` | Runtime, per-robot servo calibration written by the calibration API (git-ignored, created on first save). |
 | `.gitignore` | Ignore `server/robot_settings.json`. |
 | `WEB_UI.md` | **New.** This document. |
 
@@ -206,6 +252,12 @@ Do these with the **wheels lifted off the ground** for anything involving motors
 15. **Turn signals (WHEELS LIFTED)** — with "Invert steering" on, hold Left and note
     which indicator lights. Turn on "Also invert the turn signals"; hold Left again and
     confirm the opposite indicator now lights (matching the button).
+16. **Servo calibration (no wheels needed)** — System tab, Servo calibration. Nudge the
+    Camera tilt center with `+5`/`−1`; the tilt servo eases to the new center each time
+    and the status reads "Saved to robot". On the Camera tab tap **Center** and confirm
+    the camera returns to the calibrated center, not `300`. Open the console on another
+    device and confirm the values match, and that `curl http://<ip>:5000/api/servo_calibration`
+    returns the same JSON. Tap **Reset all to 300** to restore the official defaults.
 
 ## Rollback
 

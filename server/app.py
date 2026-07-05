@@ -106,6 +106,169 @@ def post_settings():
     return jsonify(write_settings(data))
 
 
+# ---------------------------------------------------------------------------
+# Servo calibration (server-side JSON so the centre / min / max are shared by
+# every device and applied on the robot itself). Only channels 0, 1, 2 are
+# physical servos; each has a centre plus a safe travel range. Every value is
+# clamped to the PCA9685 range the drivers use, so a malformed or hostile
+# request can never push a servo past its mechanical limits. webServer.py reads
+# get_current_servo_calibration() at start-up and registers a callback via
+# register_servo_apply() so a save from the UI is applied to the live servos.
+# ---------------------------------------------------------------------------
+SERVO_CAL_FILE = os.path.join(dir_path, 'robot_servo_calibration.json')
+# The user's hand-calibrated file; used once to seed the robot file on first run.
+LEGACY_SERVO_CAL_FILE = os.path.expanduser('~/adeept_servo_calibration.json')
+SERVO_CAL_MAX_BODY = 4096                      # bytes; the payload is tiny
+SERVO_CAL_VERSION = 1
+SERVO_CHANNELS = (0, 1, 2)
+SERVO_BOUND_MIN = 100                          # matches RPIservo ctrlRangeMin
+SERVO_BOUND_MAX = 560                          # matches RPIservo ctrlRangeMax
+SERVO_DEFAULT_CENTER = 300                     # the official Adeept safe centre
+DEFAULT_SERVO = {'center': SERVO_DEFAULT_CENTER, 'min': SERVO_BOUND_MIN, 'max': SERVO_BOUND_MAX}
+
+_servo_cal_lock = threading.Lock()
+_servo_cal_cache = None                         # in-process cache; webServer.py reads this
+_servo_apply_cb = None                          # webServer.py registers a live-apply hook
+
+
+def _clamp_int(value, lo, hi, fallback):
+    try:
+        n = int(round(float(value)))
+    except (TypeError, ValueError):
+        return fallback
+    return max(lo, min(hi, n))
+
+
+def _coerce_servo(raw, base):
+    """Merge raw {center, min, max} over base, clamped to hardware-safe bounds.
+
+    Accepts a dict, or a bare number treated as the centre. Guarantees
+    min <= max and min <= center <= max on the way out.
+    """
+    out = dict(base)
+    if isinstance(raw, (int, float)):
+        raw = {'center': raw}
+    if isinstance(raw, dict):
+        for key in ('center', 'min', 'max'):
+            if key in raw:
+                out[key] = _clamp_int(raw[key], SERVO_BOUND_MIN, SERVO_BOUND_MAX, out[key])
+    out['min'] = _clamp_int(out['min'], SERVO_BOUND_MIN, SERVO_BOUND_MAX, SERVO_BOUND_MIN)
+    out['max'] = _clamp_int(out['max'], SERVO_BOUND_MIN, SERVO_BOUND_MAX, SERVO_BOUND_MAX)
+    if out['min'] > out['max']:
+        out['min'], out['max'] = out['max'], out['min']
+    out['center'] = max(out['min'], min(out['max'], out['center']))
+    return out
+
+
+def _channel_raw(container, ch):
+    """Pull one channel's raw values from the several JSON shapes we tolerate.
+
+    Supports {"servos": {"0": {...}}}, {"0": {...}}, {"0": 275} and the
+    attribute-list form {"center": [275, 300, 275]}.
+    """
+    if not isinstance(container, dict):
+        return None
+    for key in (str(ch), ch):
+        if key in container:
+            return container[key]
+    found = {}
+    for attr in ('center', 'min', 'max'):
+        seq = container.get(attr)
+        if isinstance(seq, (list, tuple)) and ch < len(seq):
+            found[attr] = seq[ch]
+    return found or None
+
+
+def _merge_servo_calibration(data):
+    """Build the full {version, servos:{...}} structure from defaults overlaid
+    with whatever a (possibly foreign-shaped) source provides."""
+    servos_in = {}
+    if isinstance(data, dict):
+        servos_in = data.get('servos') if isinstance(data.get('servos'), dict) else data
+    result = {'version': SERVO_CAL_VERSION, 'servos': {}}
+    for ch in SERVO_CHANNELS:
+        raw = _channel_raw(servos_in, ch)
+        if raw is None and isinstance(data, dict):
+            raw = _channel_raw(data, ch)
+        result['servos'][str(ch)] = _coerce_servo(raw, DEFAULT_SERVO)
+    return result
+
+
+def _load_json_file(path):
+    try:
+        with open(path, 'r') as f:
+            loaded = json.load(f)
+        return loaded if isinstance(loaded, (dict, list)) else None
+    except (FileNotFoundError, ValueError, OSError):
+        return None
+
+
+def read_servo_calibration():
+    """Stored calibration merged over defaults. If the robot file does not exist
+    yet, seed from the user's legacy ~/adeept_servo_calibration.json (read-only;
+    the robot file is written on the first save)."""
+    data = _load_json_file(SERVO_CAL_FILE)
+    if data is None:
+        data = _load_json_file(LEGACY_SERVO_CAL_FILE)
+    return _merge_servo_calibration(data)
+
+
+def get_current_servo_calibration():
+    """Fast, cached access for webServer.py (avoids a file read per use)."""
+    global _servo_cal_cache
+    if _servo_cal_cache is None:
+        _servo_cal_cache = read_servo_calibration()
+    return _servo_cal_cache
+
+
+def register_servo_apply(callback):
+    """webServer.py registers here so a save is pushed to the live servos."""
+    global _servo_apply_cb
+    _servo_apply_cb = callback
+
+
+def write_servo_calibration(new_values):
+    """Validate, merge and atomically persist calibration; returns the saved
+    dict and notifies webServer.py so the change applies without a restart."""
+    global _servo_cal_cache
+    with _servo_cal_lock:
+        current = read_servo_calibration()
+        incoming = new_values.get('servos') if isinstance(new_values.get('servos'), dict) else new_values
+        for ch in SERVO_CHANNELS:
+            raw = _channel_raw(incoming, ch)
+            if raw is None:
+                continue
+            current['servos'][str(ch)] = _coerce_servo(raw, current['servos'][str(ch)])
+        current['version'] = SERVO_CAL_VERSION
+        tmp = SERVO_CAL_FILE + '.tmp'
+        with open(tmp, 'w') as f:
+            json.dump(current, f, indent=2)
+        os.replace(tmp, SERVO_CAL_FILE)           # atomic swap, no partial writes
+        _servo_cal_cache = current
+    cb = _servo_apply_cb
+    if cb is not None:
+        try:
+            cb(current)
+        except Exception:
+            pass
+    return current
+
+
+@app.route('/api/servo_calibration', methods=['GET'])
+def get_servo_calibration():
+    return jsonify(read_servo_calibration())
+
+
+@app.route('/api/servo_calibration', methods=['POST'])
+def post_servo_calibration():
+    if request.content_length is not None and request.content_length > SERVO_CAL_MAX_BODY:
+        return jsonify({'error': 'payload too large'}), 413
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'expected a JSON object'}), 400
+    return jsonify(write_servo_calibration(data))
+
+
 @app.route('/api/img/<path:filename>')
 def sendimg(filename):
     return send_from_directory(dir_path+'/dist/img', filename)

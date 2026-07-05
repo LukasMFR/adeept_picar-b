@@ -672,6 +672,91 @@ input[type="range"]::-moz-range-thumb {
 .mini-btn:hover { color: var(--text); }
 .mini-btn:active { transform: scale(0.95); background: var(--surface-solid); color: var(--text); }
 
+/* --- Servo calibration --- */
+.cal { display: flex; flex-direction: column; gap: 10px; }
+.cal-lead { font-size: 12px; line-height: 1.55; color: var(--text-dim); padding: 0 2px; }
+.cal-lead strong { color: var(--text); font-weight: 620; }
+.cal-list { display: grid; gap: 10px; }
+.cal-servo {
+  border-radius: var(--r-md);
+  background: var(--panel-2); border: 1px solid var(--hairline-soft);
+  padding: 13px 14px; display: flex; flex-direction: column; gap: 12px;
+}
+.cal-head { display: flex; align-items: center; gap: 12px; }
+.cal-head .ricon {
+  width: 34px; height: 34px; flex: none; border-radius: 10px; display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--hairline-soft); color: var(--text-dim);
+}
+.cal-head .ricon svg { width: 18px; height: 18px; }
+.cal-title { min-width: 0; flex: 1; }
+.cal-title .rtitle { font-weight: 580; font-size: 14px; }
+.cal-title .rdesc { font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
+.cal-ch {
+  font-size: 10.5px; font-weight: 640; letter-spacing: 0.06em; color: var(--text-dim);
+  padding: 4px 8px; border-radius: 999px; flex: none;
+  background: var(--surface); border: 1px solid var(--hairline-soft);
+}
+
+.cal-center { display: flex; align-items: center; gap: 10px; }
+.cal-lab {
+  flex: none; width: 46px; font-size: 10.5px; font-weight: 620;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint);
+}
+.stepper { display: flex; align-items: center; gap: 6px; flex: 1; justify-content: flex-end; }
+.step {
+  width: 38px; height: 38px; flex: none; border-radius: 11px; cursor: pointer;
+  display: grid; place-items: center; font-size: 12.5px; font-weight: 620;
+  background: var(--surface); border: 1px solid var(--hairline); color: var(--text-dim);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease),
+              border-color var(--dur) var(--ease), transform 120ms var(--ease);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.step:hover { color: var(--text); }
+.step:active { transform: scale(0.9); background: var(--surface-solid); color: var(--text); }
+.cal-val {
+  width: 76px; height: 38px; flex: none; text-align: center;
+  font-size: 16px; font-weight: 680; letter-spacing: -0.01em; color: var(--text);
+  background: var(--surface-solid); border: 1px solid var(--hairline); border-radius: 11px;
+  -webkit-appearance: none; appearance: none;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.cal-val:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+.cal-range { display: flex; align-items: flex-end; gap: 10px; }
+.cal-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.cal-field span {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--text-faint); padding-left: 2px;
+}
+.cal-field input {
+  width: 100%; height: 34px; text-align: center;
+  font-size: 13.5px; font-weight: 580; color: var(--text-dim);
+  background: var(--panel); border: 1px solid var(--hairline-soft); border-radius: 10px;
+  -webkit-appearance: none; appearance: none;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.cal-field input:focus { outline: none; color: var(--text); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+/* Hide the native number spinners for a cleaner, consistent field. */
+.cal-val::-webkit-outer-spin-button, .cal-val::-webkit-inner-spin-button,
+.cal-field input::-webkit-outer-spin-button, .cal-field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cal-val, .cal-field input { -moz-appearance: textfield; }
+
+.cal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 2px 0; }
+.cal-status {
+  font-size: 11.5px; font-weight: 560; color: var(--text-faint);
+  display: inline-flex; align-items: center; gap: 7px; min-width: 0;
+}
+.cal-status::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: var(--text-faint); transition: background var(--dur) var(--ease);
+}
+.cal-status[data-state="saving"] { color: var(--text-dim); }
+.cal-status[data-state="saving"]::before { background: var(--accent); }
+.cal-status[data-state="saved"] { color: var(--go); }
+.cal-status[data-state="saved"]::before { background: var(--go); }
+.cal-status[data-state="local"] { color: var(--warn); }
+.cal-status[data-state="local"]::before { background: var(--warn); }
+
 /* ---------- Persistent STOP ---------- */
 .stopbar {
   z-index: var(--z-stop);
@@ -1105,6 +1190,16 @@ input[type="range"]::-moz-range-thumb {
                   <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l-2 3h4l-2 3M6 3v4M6 17v4M18 3v4M18 17v4"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="12" r="2"/></svg></div>
                   <div class="rtext"><div class="rtitle">Also invert the turn signals</div><div class="rdesc">Swap the left and right indicator LEDs to match.</div></div>
                   <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-setting="invertTurnSignals" aria-label="Also invert the turn signals"></div>
+                </div>
+              </div>
+
+              <div class="group-label">Servo calibration</div>
+              <div class="cal">
+                <p class="cal-lead">Fine-tune the resting <strong>center</strong> of each servo so the camera and steering sit straight. Values are stored on the robot and shared with every device, and the camera <strong>Center</strong> button uses them. Nudging a center gently moves that servo so you can see where straight really is.</p>
+                <div class="cal-list" id="calList"></div>
+                <div class="cal-foot">
+                  <span class="cal-status" id="calStatus" data-state="saving">Loading calibration</span>
+                  <button class="mini-btn" id="calReset" type="button">Reset all to 300</button>
                 </div>
               </div>
 
@@ -1691,12 +1786,180 @@ input[type="range"]::-moz-range-thumb {
   $("#sysWs").textContent = WS_URL;
   $("#sysVideo").textContent = HOST + ":5000/video_feed";
 
+  /* ---------------- Servo calibration ----------------
+     Centre / min / max for the three servos (channels 0,1,2). The robot holds
+     the authoritative copy (server/robot_servo_calibration.json) and applies it
+     live, so the camera "Center" button and steering rest at the calibrated
+     centre. localStorage is only a cache: the panel shows values instantly and
+     keeps working if the robot's HTTP API is briefly unreachable. */
+  const CAL_URL = "/api/servo_calibration";
+  const CAL_KEY = "picar-servo-cal";
+  const CAL_MIN = 100, CAL_MAX = 560, CAL_DEFAULT = 300;   // hardware-safe PWM bounds
+  const SERVOS = [
+    { ch: 0, name: "Camera tilt", desc: "Up / down servo",
+      icon: '<path d="M12 20V4"/><path d="M6 10l6-6 6 6"/>' },
+    { ch: 1, name: "Camera pan", desc: "Left / right servo",
+      icon: '<path d="M4 12h16"/><path d="M14 6l6 6-6 6"/><path d="M10 6L4 12l6 6"/>' },
+    { ch: 2, name: "Steering", desc: "Front-wheel servo",
+      icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 14.5V21M10.1 10.1L4.6 6.4M13.9 10.1l5.5-3.7"/>' },
+  ];
+
+  function calLoadCache() { try { return JSON.parse(localStorage.getItem(CAL_KEY) || "{}"); } catch (e) { return {}; } }
+  function calSaveCache() { try { localStorage.setItem(CAL_KEY, JSON.stringify(cal)); } catch (e) {} }
+  function clampInt(v, lo, hi, fallback) {
+    const n = Math.round(Number(v));
+    if (!isFinite(n)) return fallback;
+    return Math.max(lo, Math.min(hi, n));
+  }
+  // One servo -> {center, min, max}, clamped to bounds with min<=max and
+  // min<=center<=max (mirrors the server's validation so the UI never shows a
+  // value the robot would reject).
+  function sanitizeServo(raw) {
+    let mn = clampInt(raw && raw.min, CAL_MIN, CAL_MAX, CAL_MIN);
+    let mx = clampInt(raw && raw.max, CAL_MIN, CAL_MAX, CAL_MAX);
+    if (mn > mx) { const t = mn; mn = mx; mx = t; }
+    const center = clampInt(raw && raw.center, mn, mx, Math.max(mn, Math.min(mx, CAL_DEFAULT)));
+    return { center: center, min: mn, max: mx };
+  }
+  function sanitizeCal(raw) {
+    const servosIn = (raw && typeof raw === "object" && raw.servos && typeof raw.servos === "object") ? raw.servos : (raw || {});
+    const out = { version: 1, servos: {} };
+    SERVOS.forEach(s => {
+      const key = String(s.ch);
+      out.servos[key] = sanitizeServo(servosIn[key] || servosIn[s.ch] || {});
+    });
+    return out;
+  }
+  let cal = sanitizeCal(calLoadCache());          // instant from cache; refined from server on boot
+
+  function setCalStatus(state, text) {
+    const el = $("#calStatus"); if (!el) return;
+    el.dataset.state = state; el.textContent = text;
+  }
+  function renderCal() {
+    const list = $("#calList"); if (!list) return;
+    list.innerHTML = "";
+    SERVOS.forEach(s => {
+      const key = String(s.ch), v = cal.servos[key];
+      const card = document.createElement("div");
+      card.className = "cal-servo";
+      card.dataset.ch = key;
+      card.innerHTML =
+        '<div class="cal-head">' +
+          '<div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + s.icon + '</svg></div>' +
+          '<div class="cal-title"><div class="rtitle"></div><div class="rdesc"></div></div>' +
+          '<span class="cal-ch mono">CH ' + key + '</span>' +
+        '</div>' +
+        '<div class="cal-center">' +
+          '<span class="cal-lab">Center</span>' +
+          '<div class="stepper">' +
+            '<button type="button" class="step" data-step="-5" aria-label="Decrease ' + s.name + ' center by 5">−5</button>' +
+            '<button type="button" class="step" data-step="-1" aria-label="Decrease ' + s.name + ' center by 1">−1</button>' +
+            '<input class="cal-val tabular" type="number" inputmode="numeric" data-role="center" value="' + v.center + '" min="' + CAL_MIN + '" max="' + CAL_MAX + '" aria-label="' + s.name + ' center PWM value" />' +
+            '<button type="button" class="step" data-step="1" aria-label="Increase ' + s.name + ' center by 1">+1</button>' +
+            '<button type="button" class="step" data-step="5" aria-label="Increase ' + s.name + ' center by 5">+5</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="cal-range">' +
+          '<label class="cal-field"><span>Min</span><input class="tabular" type="number" inputmode="numeric" data-role="min" value="' + v.min + '" min="' + CAL_MIN + '" max="' + CAL_MAX + '" aria-label="' + s.name + ' minimum PWM" /></label>' +
+          '<label class="cal-field"><span>Max</span><input class="tabular" type="number" inputmode="numeric" data-role="max" value="' + v.max + '" min="' + CAL_MIN + '" max="' + CAL_MAX + '" aria-label="' + s.name + ' maximum PWM" /></label>' +
+        '</div>';
+      card.querySelector(".rtitle").textContent = s.name;
+      card.querySelector(".rdesc").textContent = s.desc;
+      list.appendChild(card);
+    });
+  }
+  function refreshCalInputs() {                    // reflect `cal` into the fields (after clamping / server reply)
+    SERVOS.forEach(s => {
+      const key = String(s.ch), v = cal.servos[key];
+      const card = $('.cal-servo[data-ch="' + key + '"]'); if (!card) return;
+      card.querySelector('[data-role="center"]').value = v.center;
+      card.querySelector('[data-role="min"]').value = v.min;
+      card.querySelector('[data-role="max"]').value = v.max;
+    });
+  }
+
+  let calPushTimer = null;
+  function pushCal() {                             // write-through cache + debounced save to robot
+    calSaveCache();
+    setCalStatus("saving", "Saving to robot");
+    clearTimeout(calPushTimer);
+    calPushTimer = setTimeout(async () => {
+      try {
+        const r = await fetch(CAL_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ servos: cal.servos }),
+        });
+        if (!r.ok) throw new Error("http " + r.status);
+        cal = sanitizeCal(await r.json());
+        calSaveCache();
+        refreshCalInputs();
+        setCalStatus("saved", "Saved to robot");
+      } catch (e) {
+        setCalStatus("local", "Saved on this device (robot unreachable)");
+      }
+    }, 400);
+  }
+  function commitServo(ch, role, rawValue) {       // update one field, clamp, save
+    const key = String(ch);
+    const next = Object.assign({}, cal.servos[key]);
+    next[role] = rawValue;
+    cal.servos[key] = sanitizeServo(next);
+    pushCal();
+  }
+  async function fetchCal() {
+    try {
+      const r = await fetch(CAL_URL, { method: "GET", cache: "no-store" });
+      if (!r.ok) throw new Error("http " + r.status);
+      cal = sanitizeCal(await r.json());
+      calSaveCache();
+      refreshCalInputs();
+      setCalStatus("saved", "Loaded from robot");
+    } catch (e) {
+      setCalStatus("local", "Using saved values (robot unreachable)");
+    }
+  }
+  function calInit() {
+    const list = $("#calList"); if (!list) return;
+    renderCal();
+
+    // Steppers nudge the centre by ±1 / ±5, clamped to the servo's range.
+    list.addEventListener("click", (e) => {
+      const btn = e.target.closest(".step"); if (!btn) return;
+      const card = btn.closest(".cal-servo"); const ch = card.dataset.ch;
+      commitServo(ch, "center", cal.servos[ch].center + parseInt(btn.dataset.step, 10));
+      card.querySelector('[data-role="center"]').value = cal.servos[ch].center;
+    });
+    // Typed fields commit on change / Enter, not on every keystroke.
+    list.addEventListener("change", (e) => {
+      const input = e.target.closest("input[data-role]"); if (!input) return;
+      const card = input.closest(".cal-servo"); const ch = card.dataset.ch;
+      commitServo(ch, input.dataset.role, input.value);
+      refreshCalInputs();                          // show any clamping / min<->max swap across the card
+    });
+    list.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.target.matches("input[data-role]")) { e.preventDefault(); e.target.blur(); }
+    });
+
+    const resetBtn = $("#calReset");
+    if (resetBtn) resetBtn.addEventListener("click", () => {
+      SERVOS.forEach(s => { cal.servos[String(s.ch)] = { center: CAL_DEFAULT, min: CAL_MIN, max: CAL_MAX }; });
+      refreshCalInputs();
+      pushCal();
+      toast("Servo centers reset to " + CAL_DEFAULT);
+    });
+
+    fetchCal();                                    // cached values already shown; refine from the robot
+  }
+
   /* ---------------- Boot ---------------- */
   applyPrefsToUI();                    // joystick vs buttons (local pref)
   applySettingsToUI();                 // reflect cached settings immediately
   fetchServerSettings().then(server => {
     if (server) { settings = server; saveSettings(); applySettingsToUI(); }
   });
+  calInit();                           // render + load servo calibration
   startCamera();
   connect();
 })();

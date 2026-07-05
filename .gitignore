@@ -21,6 +21,7 @@ ENV/
 
 # Runtime robot config (per-device, written by the web UI settings API)
 server/robot_settings.json
+server/robot_servo_calibration.json
 
 # OS files
 .DS_Store
