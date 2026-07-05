@@ -865,10 +865,17 @@ input[type="range"]::-moz-range-thumb {
     max-width: calc((84dvh) * 4 / 3);
     margin-inline: auto;
   }
-  /* Definite height (not max-height) so the flex chain is definite and a long
-     panel (e.g. System + servo calibration) scrolls INSIDE the panel instead of
-     overflowing the dock and being clipped by .app{overflow:hidden}. */
-  .dock { gap: 14px; align-self: center; height: 86dvh; }
+  /* Dynamic box sizes: the dock hugs its content so Drive / Camera / Lights sit
+     at their natural height next to the camera. `max-height` (not a fixed height)
+     caps the dock at the viewport; .panels stops growing (flex-grow 0) so it
+     never stretches a short panel. When a panel is taller than the cap (System +
+     servo calibration) the dock hits max-height, .panels shrinks to fit, and the
+     panel scrolls INSIDE itself instead of overflowing .app{overflow:hidden}.
+     .panels becomes a flex column so the active panel is bounded by flex layout
+     (a plain height:100% won't resolve against a flex-shrunk, height-less box). */
+  .dock { gap: 14px; align-self: center; max-height: 86dvh; min-height: 0; }
+  .dock > .panels { flex: 0 1 auto; display: flex; flex-direction: column; }
+  .panels > .panel[data-active="true"] { flex: 1 1 auto; min-height: 0; }
   .dock > .stopbar { order: 0; padding: 0 0 2px; display: block; }  /* full STOP pinned at top of the dock on desktop */
   .tabs { grid-template-columns: repeat(4, 1fr); }   /* no in-nav STOP column on desktop */
   .tab-stop { display: none; }
