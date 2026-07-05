@@ -843,11 +843,12 @@ input[type="range"]::-moz-range-thumb {
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-/* iOS haptic fallback: a visually-hidden native switch. Toggling it inside a
-   user gesture makes iOS Safari (17.4+) play its system tick — the only
-   no-dependency haptic path on iPhone, where navigator.vibrate is absent. Kept
-   rendered (opacity, not display:none) so the toggle is actually processed, and
-   pulled out of the layout / a11y tree so it never shows or steals focus. */
+/* iOS haptic fallback: a visually-hidden native switch. Some iOS Safari builds
+   play a system tick when an input[type=checkbox][switch] is toggled through its
+   label inside a user gesture — the only no-dependency haptic path on iPhone,
+   where navigator.vibrate is absent. Kept rendered (opacity, not display:none)
+   so the toggle is actually processed, and pulled out of the layout / a11y tree
+   so it never shows or steals focus. */
 .haptic-switch {
   position: fixed; top: 0; left: 0;
   width: 1px; height: 1px;
@@ -1457,10 +1458,11 @@ input[type="range"]::-moz-range-thumb {
      Progressive enhancement, entirely optional and never on the safety path.
      Two backends, picked by capability, both wrapped so any failure is silent:
        • navigator.vibrate() — Android / Chrome. Short patterns per interaction.
-       • iOS Safari has no vibrate API, so we fall back to a native
-         <input type="checkbox" switch>: toggling it inside a user gesture makes
-         iOS play its system tick. iOS gives one fixed tick with no intensity
-         control, so every event degrades to that single tick there.
+       • iOS Safari has no vibrate API, so we fall back where available to a
+         native <input type="checkbox" switch>: toggling it through its label
+         inside a user gesture can make iOS play its system tick. iOS gives one
+         fixed tick with no intensity control, so every event degrades to that
+         single tick there.
      Gated by the device-local `haptics` pref; a no-op when off or unsupported. */
   const HAPTIC_PATTERNS = {
     press:   8,             // hold a drive / camera button, engage the joystick
@@ -1470,12 +1472,14 @@ input[type="range"]::-moz-range-thumb {
     stop:    [12, 30, 12],  // emergency STOP — a distinct triple pulse
   };
   const canVibrate = typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
-  // Only build the iOS switch where it exists (Safari 17.4+) and vibrate is
-  // absent, so no stray control is ever created on other browsers.
-  const iosHapticSwitch = (function () {
+  // Only build the iOS switch where it exists and vibrate is absent, so no stray
+  // control is ever created on other browsers.
+  const iosHapticLabel = (function () {
     if (canVibrate) return null;
     try {
-      if (!("switch" in HTMLInputElement.prototype)) return null;
+      const probe = document.createElement("input");
+      probe.type = "checkbox";
+      if (!("switch" in probe)) return null;
       const label = document.createElement("label");
       label.className = "haptic-switch";
       label.setAttribute("aria-hidden", "true");
@@ -1485,14 +1489,14 @@ input[type="range"]::-moz-range-thumb {
       input.tabIndex = -1;
       label.appendChild(input);
       (document.body || document.documentElement).appendChild(label);
-      return input;
+      return label;
     } catch (e) { return null; }
   })();
   function haptic(kind) {
     if (!prefs.haptics) return;
     try {
       if (canVibrate) { navigator.vibrate(HAPTIC_PATTERNS[kind] || 8); return; }
-      if (iosHapticSwitch) iosHapticSwitch.click();   // toggles the switch -> iOS tick
+      if (iosHapticLabel) iosHapticLabel.click();     // label toggles switch -> iOS tick
     } catch (e) { /* haptics are non-essential: never let them surface an error */ }
   }
 
