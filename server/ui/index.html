@@ -166,8 +166,20 @@ h1,h2,h3,p { margin: 0; }
 }
 
 /* Kill the grey iOS tap flash so a released control never looks "stuck". */
-button, .switch, .hold, .home, .tab, .icon-btn, .mini-btn, .cam-retry, .stop, .switch {
+button, .switch, .hold, .home, .tab, .tab-stop, .icon-btn, .mini-btn, .cam-retry, .stop, .switch {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Controls never select text: dragging the joystick or tapping/holding a
+   button must not highlight labels on mobile or desktop, and iOS must not raise
+   its long-press callout. Inputs, the System readout (.kv), the calibration
+   fields, and the activity log are deliberately left selectable so their values
+   can still be copied. */
+.topbar, .tabs, .tab, .tab-stop, .stopbar, .stop, .hold, .pad, .pads, .pad-title,
+.dpad, .dpad .home, .joywrap, .joystick, .joy-hint, .switch, .row .rtext,
+.group-label, .speed-row, .icon-btn, .mini-btn, .step, .cal-lab, .cal-ch,
+.brand, .conn, .chip, .cam-hud {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 
 /* ---------- App shell ---------- */
@@ -362,10 +374,12 @@ button, .switch, .hold, .home, .tab, .icon-btn, .mini-btn, .cam-retry, .stop, .s
 .dock > .panels  { order: 2; flex: 1 1 auto; min-height: 0; }
 .dock > .stopbar { order: 3; flex: none; }
 
-/* Tabs */
+/* Tabs — on mobile a trailing `auto` column carries the compact STOP so it lives
+   in the nav bar (freeing the bottom for the panels); desktop drops that column
+   back to a plain 4-up row and STOP returns to the top of the dock. */
 .tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, 1fr) auto;
   gap: 4px;
   padding: 4px;
   border-radius: var(--r-md);
@@ -390,6 +404,24 @@ button, .switch, .hold, .home, .tab, .icon-btn, .mini-btn, .cam-retry, .stop, .s
 .tab[aria-selected="true"] svg { color: var(--accent); }
 .tab:not([aria-selected="true"]):hover { color: var(--text); }
 .tab:active { transform: scale(0.96); }        /* momentary press pop (touch + mouse) */
+
+/* Compact in-nav STOP (mobile). Same danger visual language as the big STOP,
+   shrunk to a square that sits flush at the end of the tab row. Stretches to the
+   tab row height; hidden on desktop where the full STOP lives atop the dock. */
+.tab-stop {
+  display: grid; place-items: center;
+  width: 46px; align-self: stretch;
+  border-radius: 13px; cursor: pointer; border: none;
+  color: var(--danger-ink);
+  background: linear-gradient(180deg, var(--danger-strong), var(--danger));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), 0 2px 8px var(--danger-soft);
+  transition: transform 100ms var(--ease), box-shadow var(--dur) var(--ease);
+  touch-action: manipulation;
+}
+.tab-stop svg { width: 20px; height: 20px; }
+.tab-stop:active { transform: scale(0.93); }
+.tab-stop.flash { animation: stopflashmini 420ms var(--ease); }
+@keyframes stopflashmini { 0% { box-shadow: 0 0 0 0 var(--danger); } 100% { box-shadow: 0 0 0 12px transparent; } }
 
 /* Panels container */
 .panels {
@@ -507,7 +539,10 @@ input[type="range"]::-moz-range-thumb {
 :root[data-joystick="on"] .joywrap { display: flex; }
 .joystick {
   position: relative;
-  width: min(62vw, 240px); aspect-ratio: 1 / 1; border-radius: 50%;
+  /* Cap by height too (dvh) so the circle can never grow taller than the space
+     left under the speed row — that was the mobile overflow that pushed the
+     joystick off-screen / behind the old bottom STOP. */
+  width: min(62vw, 46dvh, 240px); aspect-ratio: 1 / 1; border-radius: 50%;
   display: grid; place-items: center;
   background: radial-gradient(circle at 50% 40%, var(--surface), var(--panel-2));
   border: 1px solid var(--hairline);
@@ -534,8 +569,17 @@ input[type="range"]::-moz-range-thumb {
   color: var(--accent-ink); border-color: transparent;
   box-shadow: var(--shadow-accent), inset 0 1px 0 rgba(255,255,255,0.32);
 }
-.joy-hint { font-size: 12px; color: var(--text-faint); font-weight: 560; letter-spacing: 0.01em; transition: opacity var(--dur) var(--ease); }
+.joy-hint { font-size: 12px; color: var(--text-faint); font-weight: 560; letter-spacing: 0.01em; transition: opacity var(--dur) var(--ease); text-align: center; }
 .joystick.engaged + .joy-hint { opacity: 0; }
+
+/* Speed-follows-distance is only meaningful while the joystick is on, so its
+   sub-toggle dims when the joystick is off. When both are on, the speed slider
+   is bypassed by finger distance — dim it so that reads clearly. */
+:root:not([data-joystick="on"]) .subrow[data-sub="joySpeed"] { opacity: 0.45; }
+:root[data-joystick="on"][data-joyspeed="on"] .speed-row {
+  opacity: 0.5;
+  transition: opacity var(--dur) var(--ease);
+}
 
 /* --- Camera panel --- */
 .cam-panel { height: 100%; display: grid; grid-template-rows: 1fr auto; gap: 14px; min-height: 0; }
@@ -763,7 +807,10 @@ input[type="range"]::-moz-range-thumb {
 .cal-status[data-state="local"]::before { background: var(--warn); }
 
 /* ---------- Persistent STOP ---------- */
+/* On mobile STOP lives in the nav bar (.tab-stop), so the big bar is hidden;
+   desktop re-shows it at the top of the dock (see the min-width:900px block). */
 .stopbar {
+  display: none;
   z-index: var(--z-stop);
   padding: 8px 0 calc(var(--safe-b) + 8px);
 }
@@ -822,7 +869,9 @@ input[type="range"]::-moz-range-thumb {
      panel (e.g. System + servo calibration) scrolls INSIDE the panel instead of
      overflowing the dock and being clipped by .app{overflow:hidden}. */
   .dock { gap: 14px; align-self: center; height: 86dvh; }
-  .dock > .stopbar { order: 0; padding: 0 0 2px; }  /* STOP pinned at top of the dock on desktop */
+  .dock > .stopbar { order: 0; padding: 0 0 2px; display: block; }  /* full STOP pinned at top of the dock on desktop */
+  .tabs { grid-template-columns: repeat(4, 1fr); }   /* no in-nav STOP column on desktop */
+  .tab-stop { display: none; }
   .brand .sub { display: inline; }
   /* Desktop: cap the drive buttons and centre them so the pads don't stretch. */
   .pads { align-self: center; max-width: 460px; margin-inline: auto; width: 100%; }
@@ -882,6 +931,10 @@ input[type="range"]::-moz-range-thumb {
 
   .hold { min-height: 44px; gap: 3px; }
   .hold svg { width: 23px; height: 23px; }
+
+  /* Keep the whole joystick + hint inside the shorter panel, no clipping. */
+  .joywrap { gap: 9px; }
+  .joystick { width: min(56vw, 38dvh, 200px); }
 
   .dpad {
     max-width: 210px;
@@ -1016,6 +1069,10 @@ input[type="range"]::-moz-range-thumb {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="1.6" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="8" cy="18" r="1.6" fill="currentColor" stroke="none"/></svg>
           <span class="tlabel">System</span>
         </button>
+        <!-- Compact emergency STOP, mobile only (desktop uses the full STOP atop the dock) -->
+        <button class="tab-stop" id="stopBtnMini" type="button" aria-label="Emergency stop" title="Emergency stop">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>
+        </button>
       </nav>
 
       <!-- Panels -->
@@ -1072,7 +1129,7 @@ input[type="range"]::-moz-range-thumb {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M4 12h16M12 4l-2.4 2.6M12 4l2.4 2.6M12 20l-2.4-2.6M12 20l2.4-2.6M4 12l2.6-2.4M4 12l2.6 2.4M20 12l-2.6-2.4M20 12l-2.6 2.4"/></svg>
                   </div>
                 </div>
-                <div class="joy-hint">Drag to drive</div>
+                <div class="joy-hint" id="joyHint">Drag to drive</div>
               </div>
             </div>
           </div>
@@ -1169,10 +1226,17 @@ input[type="range"]::-moz-range-thumb {
               </div>
 
               <div class="group-label">Controls</div>
-              <div class="row">
-                <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="4"/><path d="M12 13v5M8.5 21h7l-1.2-3H9.7z"/></svg></div>
-                <div class="rtext"><div class="rtitle">Joystick control</div><div class="rdesc">Use a drag joystick instead of the direction buttons. Great on a phone; the keyboard still works.</div></div>
-                <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-pref="joystick" aria-label="Joystick control"></div>
+              <div class="setting-group">
+                <div class="row">
+                  <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="4"/><path d="M12 13v5M8.5 21h7l-1.2-3H9.7z"/></svg></div>
+                  <div class="rtext"><div class="rtitle">Joystick control</div><div class="rdesc">Use a drag joystick instead of the direction buttons. Great on a phone; the keyboard still works.</div></div>
+                  <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-pref="joystick" aria-label="Joystick control"></div>
+                </div>
+                <div class="row subrow" data-sub="joySpeed">
+                  <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M13.4 10.6L18 6"/><path d="M4.5 18a8 8 0 1 1 15 0"/></svg></div>
+                  <div class="rtext"><div class="rtitle">Speed follows finger distance</div><div class="rdesc">With the joystick on, how far you push sets the speed, so the speed slider is bypassed.</div></div>
+                  <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-pref="joySpeed" aria-label="Speed follows finger distance"></div>
+                </div>
               </div>
 
               <div class="group-label">Robot behaviour</div>
@@ -1333,20 +1397,27 @@ input[type="range"]::-moz-range-thumb {
      Device-specific display choices (not robot behaviour), so these stay local
      rather than syncing to the robot: a joystick suits a phone, not a desktop. */
   const PREFS_KEY = "picar-prefs";
-  const DEFAULT_PREFS = { joystick: false };
+  // joySpeed: when the joystick is on, finger distance from centre sets the speed
+  // (bypassing the speed slider). Kept here (device-local) alongside `joystick`
+  // because both are per-device interaction choices, not shared robot behaviour.
+  const DEFAULT_PREFS = { joystick: false, joySpeed: false };
   function loadPrefs() {
     let raw = {};
     try { raw = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}"); } catch (e) {}
-    return { joystick: !!(raw && raw.joystick) };
+    return { joystick: !!(raw && raw.joystick), joySpeed: !!(raw && raw.joySpeed) };
   }
   function savePrefs() {
     try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {}
   }
   function applyPrefsToUI() {
-    document.documentElement.dataset.joystick = prefs.joystick ? "on" : "off";
+    const root = document.documentElement;
+    root.dataset.joystick = prefs.joystick ? "on" : "off";
+    root.dataset.joyspeed = prefs.joySpeed ? "on" : "off";
     $$('.switch[data-pref]').forEach(sw => {
       sw.setAttribute("aria-checked", prefs[sw.dataset.pref] ? "true" : "false");
     });
+    const hint = $("#joyHint");
+    if (hint) hint.textContent = prefs.joySpeed ? "Push farther to go faster" : "Drag to drive";
   }
   let prefs = loadPrefs();
 
@@ -1544,7 +1615,7 @@ input[type="range"]::-moz-range-thumb {
      effectiveCmd() so the invert settings apply. Release springs back and stops. */
   const joystick = $("#joystick"), joyKnob = $("#joyKnob");
   const JOY_DEAD = 0.30;                     // fraction of travel before a direction engages
-  let joyPointer = null, joyThrottle = null, joySteer = null;
+  let joyPointer = null, joyThrottle = null, joySteer = null, joySpeedSent = null;
   function joySetDir(kind, dir) {
     if (kind === "throttle") {
       if (dir === joyThrottle) return;
@@ -1556,10 +1627,25 @@ input[type="range"]::-moz-range-thumb {
       send(dir ? effectiveCmd(dir) : "TS");
     }
   }
+  // Distance-based speed (only when the joySpeed pref is on). Maps travel past the
+  // dead zone to 35..100, quantised so we only send `wsB` when it actually changes.
+  // Inside the dead zone the robot isn't driving, so speed is left untouched (no
+  // stray `wsB 0` on the initial centre touch).
+  function joySetSpeed(mag) {
+    if (mag <= JOY_DEAD) return;
+    const t = (mag - JOY_DEAD) / (1 - JOY_DEAD);               // 0 at edge of dead zone, 1 at rim
+    const q = Math.max(35, Math.min(100, Math.round((35 + t * 65) / 5) * 5));
+    if (q === joySpeedSent) return;
+    joySpeedSent = q;
+    send("wsB " + q);
+  }
   function joyReset() {
     if (joyThrottle) send("DS");
     if (joySteer) send("TS");
     joyThrottle = joySteer = null;
+    // Restore the slider's speed so button / keyboard driving uses the configured
+    // value again after a distance-controlled drag.
+    if (joySpeedSent !== null) { send("wsB " + speed.value); joySpeedSent = null; }
     if (joyPointer !== null) { try { joystick.releasePointerCapture(joyPointer); } catch (e) {} joyPointer = null; }
     joystick.classList.remove("engaged");
     joyKnob.style.transform = "translate(0px,0px)";
@@ -1569,12 +1655,16 @@ input[type="range"]::-moz-range-thumb {
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     const max = (r.width / 2) * 0.62;        // knob travel limit
     let dx = clientX - cx, dy = clientY - cy;
-    const dist = Math.hypot(dx, dy) || 1;
-    if (dist > max) { dx = dx / dist * max; dy = dy / dist * max; }
+    const rawDist = Math.hypot(dx, dy);      // real finger distance (may exceed the rim)
+    const dist = rawDist || 1;
+    // Visual knob clamps to the rim; control still uses the true finger direction,
+    // and because the pointer is captured this keeps tracking outside the circle.
+    if (rawDist > max) { dx = dx / dist * max; dy = dy / dist * max; }
     joyKnob.style.transform = "translate(" + dx.toFixed(1) + "px," + dy.toFixed(1) + "px)";
-    const nx = dx / max, ny = dy / max;      // -1..1
+    const nx = dx / max, ny = dy / max;      // -1..1 (clamped)
     joySetDir("throttle", ny < -JOY_DEAD ? "forward" : ny > JOY_DEAD ? "backward" : null);
     joySetDir("steer",    nx < -JOY_DEAD ? "left"    : nx > JOY_DEAD ? "right"    : null);
+    if (prefs.joySpeed) joySetSpeed(Math.min(1, rawDist / max));   // finger distance -> speed
   }
   joystick.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -1605,7 +1695,10 @@ input[type="range"]::-moz-range-thumb {
   document.addEventListener("visibilitychange", () => { if (document.hidden) { pointerBtn.clear(); releaseAllHeld(true); joyReset(); send("E_STOP"); } });
 
   /* ---------------- Emergency STOP ---------------- */
-  const stopBtn = $("#stopBtn");
+  // Two triggers share one handler: the full STOP (desktop, top of dock) and the
+  // compact STOP in the mobile nav bar. Only one is visible at a time.
+  const stopBtn = $("#stopBtn"), stopBtnMini = $("#stopBtnMini");
+  function flashStop(btn) { if (!btn) return; btn.classList.remove("flash"); void btn.offsetWidth; btn.classList.add("flash"); }
   function emergencyStop() {
     pointerBtn.clear();
     releaseAllHeld(false);
@@ -1613,13 +1706,14 @@ input[type="range"]::-moz-range-thumb {
     // Send an explicit stop even if not "authed" yet — best effort.
     const ok = send("E_STOP");
     send("DS"); send("TS");
-    stopBtn.classList.remove("flash"); void stopBtn.offsetWidth; stopBtn.classList.add("flash");
+    flashStop(stopBtn); flashStop(stopBtnMini);   // whichever is on screen pulses
     // Reset autonomous-mode switches in the UI (they command the robot to move).
     $$('.switch[data-motion="1"][aria-checked="true"]').forEach(sw => setSwitch(sw, false, true));
     toast(ok ? "Emergency stop sent" : "Stop sent (reconnecting)");
     if (navigator.vibrate) { try { navigator.vibrate([12, 30, 12]); } catch (e) {} }
   }
   stopBtn.addEventListener("click", emergencyStop);
+  if (stopBtnMini) stopBtnMini.addEventListener("click", emergencyStop);
 
   /* ---------------- Global keyboard control ----------------
      Physical keys drive the same on-screen hold buttons, so the pressed
@@ -1691,6 +1785,7 @@ input[type="range"]::-moz-range-thumb {
       savePrefs();
       applyPrefsToUI();
       if (sw.dataset.pref === "joystick") { joyReset(); releaseAllHeld(true); }
+      else if (sw.dataset.pref === "joySpeed") { joyReset(); }   // drop any in-flight distance speed
       return;
     }
     const cmd = on ? sw.dataset.on : sw.dataset.off;
