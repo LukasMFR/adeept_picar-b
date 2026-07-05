@@ -161,10 +161,10 @@ where "straight" really is while you calibrate. On startup the calibration is
 loaded **before** the first init move, so the robot settles on the calibrated
 centers rather than the hard-coded `300`.
 
-The first time the robot file is absent, calibration is **seeded once** from the
-user's hand-calibrated `~/adeept_servo_calibration.json` (read-only; several JSON
-shapes are tolerated). After that, edits in the UI own the value and are written
-to `server/robot_servo_calibration.json` (per-robot, not tracked in git).
+The single source of truth is `server/robot_servo_calibration.json` (per-robot,
+not tracked in git). If that file does not exist yet, every servo defaults to
+**center 300** (the official Adeept value); the file is created only when you
+first save from the UI. Nothing is read from the user's home folder.
 `localStorage["picar-servo-cal"]` is only a cache/fallback, exactly like the
 behaviour settings.
 

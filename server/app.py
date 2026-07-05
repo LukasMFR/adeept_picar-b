@@ -116,8 +116,6 @@ def post_settings():
 # register_servo_apply() so a save from the UI is applied to the live servos.
 # ---------------------------------------------------------------------------
 SERVO_CAL_FILE = os.path.join(dir_path, 'robot_servo_calibration.json')
-# The user's hand-calibrated file; used once to seed the robot file on first run.
-LEGACY_SERVO_CAL_FILE = os.path.expanduser('~/adeept_servo_calibration.json')
 SERVO_CAL_MAX_BODY = 4096                      # bytes; the payload is tiny
 SERVO_CAL_VERSION = 1
 SERVO_CHANNELS = (0, 1, 2)
@@ -161,27 +159,18 @@ def _coerce_servo(raw, base):
 
 
 def _channel_raw(container, ch):
-    """Pull one channel's raw values from the several JSON shapes we tolerate.
-
-    Supports {"servos": {"0": {...}}}, {"0": {...}}, {"0": 275} and the
-    attribute-list form {"center": [275, 300, 275]}.
-    """
+    """Return one channel's raw values from a {"0": {...}} or {"0": 275} map."""
     if not isinstance(container, dict):
         return None
     for key in (str(ch), ch):
         if key in container:
             return container[key]
-    found = {}
-    for attr in ('center', 'min', 'max'):
-        seq = container.get(attr)
-        if isinstance(seq, (list, tuple)) and ch < len(seq):
-            found[attr] = seq[ch]
-    return found or None
+    return None
 
 
 def _merge_servo_calibration(data):
-    """Build the full {version, servos:{...}} structure from defaults overlaid
-    with whatever a (possibly foreign-shaped) source provides."""
+    """Build the full {version, servos:{...}} structure from safe defaults
+    (centre 300) overlaid with the stored file or an incoming POST body."""
     servos_in = {}
     if isinstance(data, dict):
         servos_in = data.get('servos') if isinstance(data.get('servos'), dict) else data
@@ -204,12 +193,10 @@ def _load_json_file(path):
 
 
 def read_servo_calibration():
-    """Stored calibration merged over defaults. If the robot file does not exist
-    yet, seed from the user's legacy ~/adeept_servo_calibration.json (read-only;
-    the robot file is written on the first save)."""
+    """Stored calibration merged over safe defaults. The only source of truth is
+    SERVO_CAL_FILE; if it does not exist yet, every servo defaults to centre 300.
+    The file is created on the first save from the UI."""
     data = _load_json_file(SERVO_CAL_FILE)
-    if data is None:
-        data = _load_json_file(LEGACY_SERVO_CAL_FILE)
     return _merge_servo_calibration(data)
 
 
