@@ -818,7 +818,10 @@ input[type="range"]::-moz-range-thumb {
     max-width: calc((84dvh) * 4 / 3);
     margin-inline: auto;
   }
-  .dock { gap: 14px; align-self: center; max-height: 86dvh; }
+  /* Definite height (not max-height) so the flex chain is definite and a long
+     panel (e.g. System + servo calibration) scrolls INSIDE the panel instead of
+     overflowing the dock and being clipped by .app{overflow:hidden}. */
+  .dock { gap: 14px; align-self: center; height: 86dvh; }
   .dock > .stopbar { order: 0; padding: 0 0 2px; }  /* STOP pinned at top of the dock on desktop */
   .brand .sub { display: inline; }
   /* Desktop: cap the drive buttons and centre them so the pads don't stretch. */
