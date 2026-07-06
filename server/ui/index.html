@@ -864,6 +864,12 @@ input[type="range"]::-moz-range-thumb {
 .haptic-proxy > .tab,
 .haptic-proxy > .home,
 .haptic-proxy > .mini-btn {
+  /* Fill the proxy's own single cell. The D-pad positions arrows with descendant
+     selectors (.dpad .up { grid-area:1/2 } …) that also match the wrapped button
+     now nested one level down; without this reset that grid-area leaks inside the
+     proxy and shoves each control into a phantom track. The proxy itself still
+     carries the copied .up/.left/.home-slot class, so it keeps the real D-pad cell. */
+  grid-area: 1 / 1;
   width: 100%;
   height: 100%;
 }
