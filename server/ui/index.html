@@ -1502,12 +1502,10 @@ input[type="range"]::-moz-range-thumb {
        • Newer iOS Safari (26.5+) blocks scripted haptics; only a real finger
          tap on a native switch fires the tick. So we overlay an invisible
          native switch on safe tap targets. Toggle switches can hold that input
-         directly; click-style controls get a neutral wrapper so the input is a
+         directly; button-like controls get a neutral wrapper so the input is a
          sibling overlay, not invalid nested content inside a <button>.
          Joystick and STOP stay out of the direct-overlay path to avoid adding
-         touch interception to drag or safety behaviour. Hold-to-drive controls
-         also stay out because iOS fires the native switch tick on release, which
-         feels wrong for a press-and-hold movement control.
+         touch interception to drag or safety behaviour.
        iOS gives one fixed tick with no intensity control, so every event
        degrades to that single tick there.
      Gated by the device-local `haptics` pref; a no-op when off or unsupported. */
@@ -1577,7 +1575,7 @@ input[type="range"]::-moz-range-thumb {
       input.addEventListener("change", markDirectHapticTap);
       target.appendChild(input);
     });
-    const proxySelector = "#camHome, #scanBtn, .tab";
+    const proxySelector = ".hold, #camHome, #scanBtn, .tab";
     $$(proxySelector).forEach(target => {
       if (target.parentElement && target.parentElement.classList.contains("haptic-proxy")) return;
       const proxy = document.createElement("span");
