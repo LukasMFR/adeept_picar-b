@@ -1472,11 +1472,17 @@ input[type="range"]::-moz-range-thumb {
      Progressive enhancement, entirely optional and never on the safety path.
      Three backends, picked by capability, all wrapped so any failure is silent:
        • navigator.vibrate() — Android / Chrome. Short patterns per interaction.
-       • Newer iOS Safari has no vibrate API and blocks scripted haptics, so
-         each important touch target gets an invisible native switch overlay.
-         A real finger tap toggles that switch and can play the system tick.
-       • Older iOS Safari builds can still tick when a hidden native switch is
-         toggled from script through its label.
+       • Older iOS Safari (17.4–26.4) can tick when a hidden native switch is
+         toggled from script through its label — the scripted fallback below.
+       • Newer iOS Safari (26.5+) blocks scripted haptics; only a real finger
+         tap on a native switch fires the tick. So we overlay an invisible
+         native switch on the settings toggles, whose direct tap gives that tick.
+         The overlay is confined to the .switch <div> toggles on purpose: they
+         are discrete taps, valid containers for an <input>, and never on the
+         drive / joystick / STOP / multitouch paths, so it can't regress those.
+         The drive, camera, tab and STOP buttons therefore keep haptics on
+         Android (vibrate) and older iOS (scripted), and simply go silent on
+         26.5+ rather than risk their motion / safety behaviour.
        iOS gives one fixed tick with no intensity control, so every event
        degrades to that single tick there.
      Gated by the device-local `haptics` pref; a no-op when off or unsupported. */
@@ -1525,7 +1531,13 @@ input[type="range"]::-moz-range-thumb {
   }
   function installDirectHapticOverlays() {
     if (!canNativeSwitchHaptic) return;
-    const selector = ".hold, #joystick, #camHome, #scanBtn, .tab, .switch, #stopBtn, #stopBtnMini";
+    // Touch only: desktop Safari also satisfies canNativeSwitchHaptic (no vibrate,
+    // has the switch attribute) but has no Taptic Engine, so overlaying its
+    // controls would add surface area for zero benefit.
+    if (!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches)) return;
+    // Only the toggle switches: <div> containers (valid to hold an <input>, unlike
+    // the <button> controls), discrete taps, and off every motion / safety path.
+    const selector = ".switch";
     $$(selector).forEach(target => {
       if (target.querySelector(".haptic-direct-input")) return;
       target.classList.add("haptic-direct");
@@ -1736,11 +1748,10 @@ input[type="range"]::-moz-range-thumb {
   // multi-touch and stuck buttons — no global "release everything on pointerup").
   const pointerBtn = new Map();   // pointerId -> button
   const cancelledTouchBtns = new Set();
-  function isDirectHapticInput(el) { return el && el.classList && el.classList.contains("haptic-direct-input"); }
   $$(".hold").forEach(btn => {
     btn.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
-      if (!isDirectHapticInput(e.target)) e.preventDefault();
+      e.preventDefault();
       try { btn.setPointerCapture(e.pointerId); } catch (err) {}
       pointerBtn.set(e.pointerId, btn);
       pressStart(btn);
@@ -1854,7 +1865,7 @@ input[type="range"]::-moz-range-thumb {
   }
   joystick.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    if (!isDirectHapticInput(e.target)) e.preventDefault();
+    e.preventDefault();
     joyPointer = e.pointerId;
     try { joystick.setPointerCapture(e.pointerId); } catch (err) {}
     joystick.classList.add("engaged");
