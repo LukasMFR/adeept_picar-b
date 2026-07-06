@@ -1274,7 +1274,7 @@ input[type="range"]::-moz-range-thumb {
               <div class="setting-group">
                 <div class="row">
                   <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M12 7v10"/><path d="M4 9v6M20 9v6"/></svg></div>
-                  <div class="rtext"><div class="rtitle">Haptic feedback</div><div class="rdesc">A subtle tap on drive, camera, tab, and STOP controls. Uses phone vibration or native iOS taps when available.</div></div>
+                  <div class="rtext"><div class="rtitle">Haptic feedback</div><div class="rdesc">A subtle tap on supported controls. Uses phone vibration or native iOS taps when available.</div></div>
                   <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-pref="haptics" aria-label="Haptic feedback"></div>
                 </div>
               </div>
@@ -1535,9 +1535,10 @@ input[type="range"]::-moz-range-thumb {
     // has the switch attribute) but has no Taptic Engine, so overlaying its
     // controls would add surface area for zero benefit.
     if (!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches)) return;
-    // Only the toggle switches: <div> containers (valid to hold an <input>, unlike
-    // the <button> controls), discrete taps, and off every motion / safety path.
-    const selector = ".switch";
+    // Only non-motion toggle switches: <div> containers (valid to hold an
+    // <input>, unlike the <button> controls), discrete taps, and off every
+    // autonomous movement / safety path.
+    const selector = ".switch:not([data-motion])";
     $$(selector).forEach(target => {
       if (target.querySelector(".haptic-direct-input")) return;
       target.classList.add("haptic-direct");
