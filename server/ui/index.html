@@ -843,18 +843,31 @@ input[type="range"]::-moz-range-thumb {
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-/* iOS haptic fallback: a visually-hidden native switch. Some iOS Safari builds
-   play a system tick when an input[type=checkbox][switch] is toggled through its
-   label inside a user gesture — the only no-dependency haptic path on iPhone,
-   where navigator.vibrate is absent. Kept rendered (opacity, not display:none)
-   so the toggle is actually processed, and pulled out of the layout / a11y tree
-   so it never shows or steals focus. */
+/* iOS haptic fallbacks. Some older iOS Safari builds play a system tick when a
+   native switch is toggled from script through its label. Newer builds require
+   the user's finger to tap the switch directly, so supported controls also get
+   an invisible switch overlay. Both stay out of the a11y tree and fail silently. */
 .haptic-switch {
   position: fixed; top: 0; left: 0;
   width: 1px; height: 1px;
   opacity: 0; pointer-events: none;
   z-index: -1; overflow: hidden;
 }
+.haptic-direct { position: relative; }
+.haptic-direct-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+  z-index: 2;
+  clip-path: inset(0 round 999px);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+:root[data-haptics="off"] .haptic-direct-input { pointer-events: none; }
 
 /* ---------- Desktop layout ---------- */
 @media (min-width: 900px) {
@@ -1261,7 +1274,7 @@ input[type="range"]::-moz-range-thumb {
               <div class="setting-group">
                 <div class="row">
                   <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M12 7v10"/><path d="M4 9v6M20 9v6"/></svg></div>
-                  <div class="rtext"><div class="rtitle">Haptic feedback</div><div class="rdesc">A subtle buzz on drive, camera, tab, and STOP controls. Needs a phone that supports vibration; ignored where it doesn't.</div></div>
+                  <div class="rtext"><div class="rtitle">Haptic feedback</div><div class="rdesc">A subtle tap on drive, camera, tab, and STOP controls. Uses phone vibration or native iOS taps when available.</div></div>
                   <div class="switch accent" role="switch" aria-checked="false" tabindex="0" data-pref="haptics" aria-label="Haptic feedback"></div>
                 </div>
               </div>
@@ -1446,6 +1459,7 @@ input[type="range"]::-moz-range-thumb {
     const root = document.documentElement;
     root.dataset.joystick = prefs.joystick ? "on" : "off";
     root.dataset.joyspeed = prefs.joySpeed ? "on" : "off";
+    root.dataset.haptics = prefs.haptics ? "on" : "off";
     $$('.switch[data-pref]').forEach(sw => {
       sw.setAttribute("aria-checked", prefs[sw.dataset.pref] ? "true" : "false");
     });
@@ -1456,13 +1470,15 @@ input[type="range"]::-moz-range-thumb {
 
   /* ---------------- Haptics ----------------
      Progressive enhancement, entirely optional and never on the safety path.
-     Two backends, picked by capability, both wrapped so any failure is silent:
+     Three backends, picked by capability, all wrapped so any failure is silent:
        • navigator.vibrate() — Android / Chrome. Short patterns per interaction.
-       • iOS Safari has no vibrate API, so we fall back where available to a
-         native <input type="checkbox" switch>: toggling it through its label
-         inside a user gesture can make iOS play its system tick. iOS gives one
-         fixed tick with no intensity control, so every event degrades to that
-         single tick there.
+       • Newer iOS Safari has no vibrate API and blocks scripted haptics, so
+         each important touch target gets an invisible native switch overlay.
+         A real finger tap toggles that switch and can play the system tick.
+       • Older iOS Safari builds can still tick when a hidden native switch is
+         toggled from script through its label.
+       iOS gives one fixed tick with no intensity control, so every event
+       degrades to that single tick there.
      Gated by the device-local `haptics` pref; a no-op when off or unsupported. */
   const HAPTIC_PATTERNS = {
     press:   8,             // hold a drive / camera button, engage the joystick
@@ -1472,14 +1488,21 @@ input[type="range"]::-moz-range-thumb {
     stop:    [12, 30, 12],  // emergency STOP — a distinct triple pulse
   };
   const canVibrate = typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
-  // Only build the iOS switch where it exists and vibrate is absent, so no stray
-  // control is ever created on other browsers.
-  const iosHapticLabel = (function () {
-    if (canVibrate) return null;
+  const canNativeSwitchHaptic = (function () {
+    if (canVibrate) return false;
     try {
       const probe = document.createElement("input");
       probe.type = "checkbox";
-      if (!("switch" in probe)) return null;
+      return "switch" in probe;
+    } catch (e) { return false; }
+  })();
+  let directHapticUntil = 0;
+  function markDirectHapticTap() { directHapticUntil = performance.now() + 700; }
+  // Only build the iOS switch where it exists and vibrate is absent, so no stray
+  // control is ever created on other browsers.
+  const iosHapticLabel = (function () {
+    if (!canNativeSwitchHaptic) return null;
+    try {
       const label = document.createElement("label");
       label.className = "haptic-switch";
       label.setAttribute("aria-hidden", "true");
@@ -1496,9 +1519,29 @@ input[type="range"]::-moz-range-thumb {
     if (!prefs.haptics) return;
     try {
       if (canVibrate) { navigator.vibrate(HAPTIC_PATTERNS[kind] || 8); return; }
+      if (performance.now() < directHapticUntil) return;      // direct switch tap already handled this gesture
       if (iosHapticLabel) iosHapticLabel.click();     // label toggles switch -> iOS tick
     } catch (e) { /* haptics are non-essential: never let them surface an error */ }
   }
+  function installDirectHapticOverlays() {
+    if (!canNativeSwitchHaptic) return;
+    const selector = ".hold, #joystick, #camHome, #scanBtn, .tab, .switch, #stopBtn, #stopBtnMini";
+    $$(selector).forEach(target => {
+      if (target.querySelector(".haptic-direct-input")) return;
+      target.classList.add("haptic-direct");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.setAttribute("switch", "");
+      input.className = "haptic-direct-input";
+      input.tabIndex = -1;
+      input.setAttribute("aria-hidden", "true");
+      input.addEventListener("pointerdown", markDirectHapticTap);
+      input.addEventListener("click", markDirectHapticTap);
+      input.addEventListener("change", markDirectHapticTap);
+      target.appendChild(input);
+    });
+  }
+  installDirectHapticOverlays();
 
   /* ---------------- Logging ---------------- */
   const logEl = $("#log");
@@ -1693,10 +1736,11 @@ input[type="range"]::-moz-range-thumb {
   // multi-touch and stuck buttons — no global "release everything on pointerup").
   const pointerBtn = new Map();   // pointerId -> button
   const cancelledTouchBtns = new Set();
+  function isDirectHapticInput(el) { return el && el.classList && el.classList.contains("haptic-direct-input"); }
   $$(".hold").forEach(btn => {
     btn.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
-      e.preventDefault();
+      if (!isDirectHapticInput(e.target)) e.preventDefault();
       try { btn.setPointerCapture(e.pointerId); } catch (err) {}
       pointerBtn.set(e.pointerId, btn);
       pressStart(btn);
@@ -1810,7 +1854,7 @@ input[type="range"]::-moz-range-thumb {
   }
   joystick.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    e.preventDefault();
+    if (!isDirectHapticInput(e.target)) e.preventDefault();
     joyPointer = e.pointerId;
     try { joystick.setPointerCapture(e.pointerId); } catch (err) {}
     joystick.classList.add("engaged");
